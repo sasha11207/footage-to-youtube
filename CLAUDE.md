@@ -17,6 +17,19 @@ Always answer in the language the user writes in (English, Ukrainian, Spanish, �
 if they switch. Commands, file names and code stay as they are. Project files you create for the
 user (meta.json, notes) use the language they choose for their channel.
 
+**Files of this project itself** (README, CLAUDE.md, skills, script comments, commit messages):
+English and Ukrainian only. Never add Russian text to anything that is committed or pushed.
+User-facing docs come in two parallel versions kept in sync: English (`README.md`) and
+Ukrainian (`README.uk.md`) — when you change one, change the other in the same commit.
+
+## 0.1 Updates
+
+This project is improved over time on GitHub. At the start of a conversation (after doctor), if
+the folder is a git clone, run `git fetch` quietly and compare with `git status -sb`. If the
+remote has new commits, tell the user in one line what changed (`git log --oneline HEAD..@{u}`)
+and offer: "1. Update now (git pull) 2. Later". Never pull over the user's uncommitted changes
+without asking; never push unless the user asks.
+
 ## 1. First thing in every new conversation: detect the computer
 
 Run `python scripts/doctor.py` (Windows) or `python3 scripts/doctor.py` (macOS/Linux) —
