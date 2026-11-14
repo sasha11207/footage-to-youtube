@@ -1,0 +1,15 @@
+{
+ "_comment": "Copy to output/<name>.meta.json and fill in. Keys starting with _ are ignored. Remove what you don't need. Title max 100 characters. publishAt is UTC (ISO 8601) and only on the owner's yes. privacyStatus 'public' is refused by yt.py unless --confirm-public.",
+ "title": "What & where · N Hours for <use> · <promise> 4K",
+ "description": "Two calm sentences: what you see and hear.\n\nWhere and how it was filmed and recorded (real place, own recording).\n\nNo music. No voices. No AI.\n\nPut it on for:\n• ...\n• ...\n• ...\n\nOne line about the channel.\n\n📍 Place\n🎥 4K · 🎙 Natural sound, field recording\n\n#hashtag1 #hashtag2 #hashtag3",
+ "tags": ["most specific tag", "second tag", "10 hours", "sleep sounds", "4k"],
+ "categoryId": "19",
+ "defaultLanguage": "en",
+ "madeForKids": false,
+ "thumbnail": "thumbs/thumb_night_text.jpg",
+ "playlist": ["Playlist name (created if missing)"],
+ "_publishAt": "2027-01-15T20:00:00Z",
+ "localizations": {
+  "es": {"title": "Título en español (máx. 100)", "description": "Descripción en español"}
+ }
+}

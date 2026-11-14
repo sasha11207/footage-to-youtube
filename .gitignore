@@ -1,0 +1,62 @@
+# secrets: OAuth client, tokens, API keys - never commit
+.secrets/
+.env
+*.pem
+client_secret*.json
+token*.json
+
+# your work and results (local only)
+work/
+output/
+channel/
+demo-work/
+*-work/
+
+# media files never go into git
+*.mov
+*.MOV
+*.mp4
+*.MP4
+*.m4v
+*.mts
+*.MTS
+*.mkv
+*.avi
+*.hevc
+*.wav
+*.WAV
+*.flac
+*.mp3
+*.m4a
+*.aif
+*.aiff
+*.jpg
+*.jpeg
+*.JPG
+*.heic
+*.HEIC
+*.png
+*.dng
+*.trf
+
+# third-party skills installed locally (see .claude/skills/shorts/SKILL.md)
+.claude/skills/yt-*/
+.claude/skills/video-analysis/
+.claude/skills/hook-lint/
+.claude/skills/pause-cut/
+.claude/skills/reel-render/
+.claude/skills/broll-index/
+.claude/skills/media-search/
+.claude/skills/videogen/
+.claude/skills/notes-digest/
+.claude/settings.local.json
+
+# system and editor clutter
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+desktop.ini
+._*
+.vscode/
+.idea/
