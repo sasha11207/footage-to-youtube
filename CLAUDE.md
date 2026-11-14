@@ -123,6 +123,14 @@ The user's ears are the final check: never skip this, never claim "it sounds fin
 
 ## 6. Render, then verify before saying "done"
 
+**Keep the computer awake during every long render** (loops, builds, anything over ~10 minutes):
+start the render in the background, then run `scripts/keepawake.py --pid <render pid>` in the
+background too (or wrap the command: `scripts/keepawake.py -- <command>`). It holds a "don't
+sleep" request only while the render runs and changes no system setting. Then tell the user in
+plain words: "1. Don't close the laptop lid (it sleeps anyway unless an external screen is
+connected) 2. Keep it plugged in 3. Don't unplug the drive with the footage 4. Don't quit Claude.
+The screen may go dark — that's fine."
+
 Follow the `ambient-long` skill: `loop` → `seam` (show the user `seam_check.mp4`, seam at 0:05) →
 `build --hours N` → `verify`. `verify` must say PASS (decodes at start/middle/end, loudness on
 target, length right). Tell the user the result in one line and where the file is.

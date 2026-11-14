@@ -216,6 +216,7 @@ So you can fill in dozens of videos and run ~50 searches a day for free.
 | `scripts/ambient.py` | Analyze, pick, test, loop, seam check, build, verify, Short, patch-sound |
 | `scripts/audioloop.py` | Builds a clean sound bed from hand-picked pieces |
 | `scripts/thumb.py` | Thumbnail with text |
+| `scripts/keepawake.py` | Keeps the computer awake while a video renders (no settings changed) |
 | `scripts/yt.py` | YouTube metadata (titles, descriptions, languages, thumbnail, playlists, schedule) |
 | `scripts/research.py` | YouTube research (outliers, views per day, upload rhythm) |
 | `templates/` | Templates for video metadata and your channel profile |
@@ -223,6 +224,12 @@ So you can fill in dozens of videos and run ~50 searches a day for free.
 
 The folders `work/`, `output/`, `channel/`, `demo-work/` and `.secrets/` are created on your
 computer and are never committed.
+
+## Long renders: keep the computer awake
+
+A 10-hour video can take a few hours to render. Claude keeps your computer awake while it runs
+(`scripts/keepawake.py`, no settings are changed). Please don't close the laptop lid, keep it
+plugged in, and don't unplug the drive with your footage until Claude says it's done.
 
 ## Updating
 
