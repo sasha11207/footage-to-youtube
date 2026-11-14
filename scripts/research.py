@@ -167,6 +167,11 @@ def cmd_search(a):
 
 
 def resolve_channel(s):
+    """Accepts @handle, UC... id, or a link like https://www.youtube.com/@handle or .../channel/UC..."""
+    s = s.strip().rstrip("/")
+    m = re.search(r"/channel/(UC[\w-]{22})", s) or re.search(r"/(@[\w.-]+)", s)
+    if m:
+        s = m.group(1)
     if s.startswith("UC") and len(s) == 24:
         return s
     res = get("/channels", {"part": "id", "forHandle": s if s.startswith("@") else "@" + s})
@@ -181,8 +186,31 @@ def cmd_channel(a):
     rows = videos(recent_uploads(info[cid]["uploads"], a.n))
     add_outliers(rows, info, a.n)
     ch = info[cid]
-    emit(table(rank(rows, a.sort), f"Channel: {ch['title']} ({ch['subs']:,} subscribers, {ch['videos']} videos, "
-                                   f"median {ch['median_views']:,} views)"), a.out)
+    text = table(rank(rows, a.sort), f"Channel: {ch['title']} ({ch['subs']:,} subscribers, {ch['videos']} videos, "
+                                     f"median {ch['median_views']:,} views)")
+    emit(text + rhythm(rows), a.out)
+
+
+def rhythm(rows):
+    """Upload rhythm and format mix of the listed uploads."""
+    if len(rows) < 2:
+        return ""
+    days = sorted(dt.date.fromisoformat(r["published"]) for r in rows)
+    gaps = [(b - a).days for a, b in zip(days, days[1:])]
+    recent = [d for d in days if (dt.date.today() - d).days <= 90]
+    wd = {}
+    for d in days:
+        wd[d.strftime("%A")] = wd.get(d.strftime("%A"), 0) + 1
+    shorts = [r for r in rows if r["length_s"] <= 180]
+    longs = [r for r in rows if r["length_s"] > 180]
+    L = ["", "## Upload rhythm and formats", "",
+         f"- Median gap between uploads: {st.median(gaps):g} days; last 90 days: {len(recent)} uploads "
+         f"({len(recent) / 13:.1f} per week)",
+         "- Upload days: " + ", ".join(f"{k} {v}" for k, v in sorted(wd.items(), key=lambda x: -x[1])),
+         f"- Shorts (<= 3 min): {len(shorts)}, median {st.median([r['views'] for r in shorts]):,.0f} views" if shorts else "- Shorts: none",
+         f"- Long videos: {len(longs)}, median length {fmt_len(int(st.median([r['length_s'] for r in longs])))}, "
+         f"median {st.median([r['views'] for r in longs]):,.0f} views" if longs else "- Long videos: none"]
+    return "\n".join(L) + "\n"
 
 
 def main():
@@ -200,7 +228,7 @@ def main():
     p.add_argument("--recent", type=int, default=30, help="recent uploads per channel for the median")
     p.add_argument("--sort", choices=["outlier", "views_day", "views"], default="outlier")
     p.add_argument("--out", default="")
-    p = sub.add_parser("channel"); p.add_argument("channel", help="@handle or UC... channel id")
+    p = sub.add_parser("channel"); p.add_argument("channel", help="@handle, UC... channel id, or channel link")
     p.add_argument("--n", type=int, default=50)
     p.add_argument("--sort", choices=["outlier", "views_day", "views"], default="views_day")
     p.add_argument("--out", default="")

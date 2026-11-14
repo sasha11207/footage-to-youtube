@@ -89,7 +89,7 @@ def cmd_auth(a):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             got.update({k: v[0] for k, v in q.items()})
             self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.end_headers()
-            self.wfile.write("Done. You can close this window. / Готово, окно можно закрыть.".encode())
+            self.wfile.write("Done. You can close this window.".encode())
 
         def log_message(self, *x):
             pass

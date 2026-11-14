@@ -12,7 +12,8 @@ Steps (each writes into --work, default ./work):
   seam    <loopdir>                10 s clip around the seam (loop end -> loop start) to check by eye and ear
   build   <loopdir> --hours 3      repeat the loop N times by stream copy + encode the audio once -> final MP4
   verify  <final.mp4>              decode start/middle/end, loudness, length -> PASS / FAIL
-  short   <clip> <start>           vertical 9:16 Short (up to 60 s) with sound
+  short   <clip> <start>           vertical 9:16 Short (up to 60 s) with sound, optional hook text
+  patch-sound <video> --at S       cover a short noise in a finished video (picture copied untouched)
 
 Example (macOS paths; on Windows use e.g. "D:/Footage/IMG_0420.MOV"):
   python3 scripts/ambient.py scan "/Volumes/Drive/Ocean" --work work
@@ -555,7 +556,22 @@ def cmd_short(a):
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     vc = video_chain(c, a, "1080x1920")
-    ins = ["-ss", a.start, "-t", D, "-i", a.clip]
+    cwd = None
+    if a.text:      # hook as on-screen text, safe area (upper middle); one drawtext per line, via text files
+        from common import filter_path, find_font
+        font = find_font()
+        ff = f"fontfile='{filter_path(font)}':" if font else ""
+        cwd = out.parent
+        until = f":enable='lt(t,{a.text_dur:g})'" if a.text_dur > 0 else ""
+        lines = [x.strip() for x in a.text.replace("\\n", "\n").split("\n") if x.strip()]
+        draws = []
+        for k, line in enumerate(lines):
+            tf = out.with_name(f"{out.stem}.text{k}.txt")
+            tf.write_text(line, encoding="utf-8")
+            draws.append(f"drawtext={ff}textfile={tf.name}:fontsize=64:fontcolor=white:x=(w-tw)/2:"
+                         f"y=h*0.22+{k * 100}:box=1:boxcolor=black@0.45:boxborderw=18{until}")
+        vc = vc.replace(",format=yuv420p", "") + "," + ",".join(draws) + ",format=yuv420p"
+    ins = ["-ss", a.start, "-t", D, "-i", Path(a.clip).resolve()]
     ain, has_audio = audio_inputs(a, c, a.start, D)
     if ain:
         ins += ain
@@ -565,10 +581,47 @@ def cmd_short(a):
         cmd += ["-map", f"{1 if ain else 0}:a", "-af",
                 audio_chain(a) + f",loudnorm=I={a.lufs}:TP=-1.5:LRA=11,afade=t=in:d=0.3,afade=t=out:st={D - fo:.2f}:d={fo:g}"] \
             + aac_args("192k")
-    cmd += ["-t", D, "-movflags", "+faststart", out]
+    cmd += ["-t", D, "-movflags", "+faststart", out.resolve()]
     print(f"rendering Short {D:g}s 1080x1920", flush=True)
-    run(cmd)
+    run(cmd, cwd=cwd)
+    for tf in out.parent.glob(out.stem + ".text*.txt"):
+        tf.unlink()
     print(f"-> {out}")
+
+
+# ---------------------------------------------------------------- patch-sound
+def cmd_patch_sound(a):
+    """Cover a short noise in a finished video with the sound just before it; the picture is copied untouched."""
+    src = Path(a.file)
+    T = duration(src)
+    f, L = a.fade, a.len
+    P = L + 2 * f                                   # patch length incl. both fades
+    if a.at - f - P - a.gap < 0 or a.at + L + f > T:
+        sys.exit("the spot is too close to the start or end of the video")
+    base = max(0.0, a.at - f - P - a.gap - 1) if a.preview else 0.0     # preview: seek close to the spot
+    s0 = a.at - base
+    e0, p0 = s0 + L, s0 - f - P - a.gap             # patch source ends a little before the fade-in starts
+    mid, half = (s0 + e0) / 2, L / 2
+    keep = f"clip((abs(t-{mid:.3f})-{half:.3f})/{f:.3f},0,1)"      # 1 outside, 0 inside, linear ramps
+    fc = (f"[0:a]asplit[o][c];[o]volume='{keep}':eval=frame[oo];"
+          f"[c]atrim=start={p0:.3f}:end={p0 + P:.3f},asetpts=PTS-STARTPTS,"
+          f"adelay={int(round((s0 - f) * 1000))}:all=1,volume='1-{keep}':eval=frame[pp];"
+          f"[oo][pp]amix=inputs=2:duration=first:normalize=0")
+    out = Path(a.out) if a.out else src.with_name(src.stem + "_fixed" + src.suffix)
+    if a.preview:   # 20 s around the spot, for listening first; the spot is at 0:10
+        out = out.with_name(out.stem + "_preview.mp4")
+        t0 = max(0.0, s0 - 10)
+        fc += (f",atrim=start={t0:.3f}:end={t0 + 20:.3f},asetpts=PTS-STARTPTS[a];"
+               f"[0:v]trim=start={t0:.3f}:end={t0 + 20:.3f},setpts=PTS-STARTPTS[v]")
+        cmd = FF + ["-ss", f"{base:.3f}", "-i", src, "-filter_complex", fc, "-map", "[v]", "-map", "[a]"] + \
+            video_encoder_args("x264", 30, "preview") + aac_args("192k")
+    else:
+        cmd = FF + ["-i", src, "-filter_complex", fc + "[a]", "-map", "0:v", "-map", "[a]", "-c:v", "copy"] + aac_args("256k")
+    cmd += ["-movflags", "+faststart", out]
+    print(f"covering {a.at:g}-{a.at + L:g}s with the sound from {base + p0:.1f}-{base + p0 + P:.1f}s"
+          + (" (preview)" if a.preview else ""), flush=True)
+    run(cmd)
+    print(f"-> {out}" + ("  (the spot is at 0:10)" if a.preview else ""))
 
 
 # ---------------------------------------------------------------- CLI
@@ -625,11 +678,21 @@ def main():
 
     p = sub.add_parser("short"); p.add_argument("clip"); p.add_argument("start", type=float)
     p.add_argument("--dur", type=float, default=45); p.add_argument("--out", default="work/shorts/short.mp4")
+    p.add_argument("--text", default="", help="on-screen hook text (use \\n for a new line)")
+    p.add_argument("--text-dur", type=float, default=3.0, help="seconds the text stays; 0 = whole Short")
     add_look_args(p, lufs=-14.0)
+
+    p = sub.add_parser("patch-sound"); p.add_argument("file")
+    p.add_argument("--at", type=float, required=True, help="second where the noise starts")
+    p.add_argument("--len", type=float, default=1.5, help="how long the noise lasts, seconds")
+    p.add_argument("--fade", type=float, default=0.4); p.add_argument("--gap", type=float, default=0.5)
+    p.add_argument("--preview", action="store_true", help="only a 20 s preview around the spot")
+    p.add_argument("--out", default="")
 
     a = ap.parse_args()
     {"scan": cmd_scan, "analyze": cmd_analyze, "pick": cmd_pick, "test": cmd_test, "loop": cmd_loop,
-     "seam": cmd_seam, "build": cmd_build, "verify": cmd_verify, "short": cmd_short}[a.cmd](a)
+     "seam": cmd_seam, "build": cmd_build, "verify": cmd_verify, "short": cmd_short,
+     "patch-sound": cmd_patch_sound}[a.cmd](a)
 
 
 if __name__ == "__main__":

@@ -25,6 +25,10 @@ python3 scripts/ambient.py short "<clip>" <start> --dur 30 --look day --out outp
 - 1080x1920, H.264, sound cleaned (wind cut, gentle denoise), loudness **-14 LUFS**, soft 0.3 s fade-in, 1.5 s fade-out.
 - From a horizontal clip it crops the middle; move the crop with `--xpos 0.2` (left) … `0.8` (right).
 - With a recorder: `--audio "<wav>" --audio-offset <s>` (offset from `scripts/footage.py sync`).
+- Hook text on screen: `--text "Wait for the big one\nreal sound"` (`\n` = new line), shown for
+  `--text-dur 3` seconds (0 = whole Short), placed in the upper-middle safe area.
+- From an existing long video: find 3–8 strong moments (ask the user, or look at `pick` contact
+  sheets / the loudest wave hits), make ONE test Short, then the rest with the same settings.
 - Good starts: the first second must already show the best thing (a wave breaking, juice pouring).
 - Title ≤ 60 chars, hook first; add `#shorts` and 2 topic hashtags to the description.
   Link the long video in the description ("Full 10-hour version: …").

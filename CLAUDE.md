@@ -13,8 +13,9 @@ Detailed playbooks live in `.claude/skills/`:
 
 ## 0. Language
 
-Answer in the language the user writes in. If they write in Russian, speak Russian
-(see the short Russian section at the end). Commands and file names stay as they are.
+Always answer in the language the user writes in (English, Ukrainian, Spanish, …), and switch
+if they switch. Commands, file names and code stay as they are. Project files you create for the
+user (meta.json, notes) use the language they choose for their channel.
 
 ## 1. First thing in every new conversation: detect the computer
 
@@ -59,8 +60,8 @@ Ask in this order (skip what is already known):
    2. A separate recorder (Zoom, Tascam, Rode…) 3. No sound / I'll add music I own 4. Not sure".
 5. **Format** — "What do you want to make first? 1. One long video (how many hours?)
    2. Shorts (vertical, under 60 s) 3. Both".
-6. **Language of titles/descriptions** — "1. English 2. Russian 3. English + translations
-   (Spanish, German, French, Portuguese, Japanese…) 4. Other".
+6. **Language of titles/descriptions** — "1. English 2. My own language (which one?)
+   3. English + translations (Spanish, German, French, Portuguese, Japanese…) 4. Other".
 
 ## 3. Inventory the footage (read-only)
 
@@ -101,7 +102,41 @@ Write `output/<name>.meta.json` from `templates/meta.template.json` (title ≤ 1
 description, tags, languages, playlist, optional `publishAt`). Show it to the user and ask for OK.
 The user uploads the video in YouTube Studio as **Private** and gives you the video ID (or you find
 it with `scripts/yt.py list`). Then `scripts/yt.py apply <ID> <meta.json> --dry-run`, show the
-result, and only on "yes" run without `--dry-run`. API setup: README → "YouTube API".
+result, and only on "yes" run without `--dry-run`.
+
+### Connecting YouTube (when a YouTube step comes up and there are no credentials)
+
+Check whether `.secrets/client_secret.json` exists (only check that the file exists — never print
+or read its contents into the chat). If it is missing, walk the user through README →
+"Connect your YouTube channel" **one numbered step at a time**: say what to click, then wait for
+"done" (or a screenshot) before the next step:
+1. Create a Google Cloud project. 2. Enable "YouTube Data API v3". 3. OAuth consent screen:
+External, Testing, add their own Google account as a test user. 4. Create an OAuth client ID of
+type "Desktop app". 5. Download the JSON and save it **themselves** as `.secrets/client_secret.json`
+(show the exact full path on their computer). 6. You run `scripts/yt.py auth`; they sign in
+in the browser window that opens.
+Never ask the user to paste a key, client secret or token into the chat, and never write one into
+any file except the git-ignored `.secrets/` (the user saves the downloaded file there). For research
+an API key also works: the user saves it in `.secrets/api_key.txt` themselves.
+Quota is free: 10,000 units per day. Metadata update ≈ 50 units, thumbnail 50, playlist add 50,
+one research search ≈ 100. Don't run more than ~20 searches a day.
+
+## Other common requests
+
+- **Analyze a channel** (theirs or a competitor's): `research` skill → `research.py channel <@handle or link>`
+  gives top videos, outliers, lengths and the upload rhythm. Explain in 5–8 plain bullets.
+- **Analyze a niche**: `research.py search "<topic>"`, rank by outlier. Ask first: long videos or Shorts?
+- **Compare my channel with competitors**: run `channel` for theirs and for 3–5 competitors they name
+  (or from a niche search); end with **one main fix** they can do next, and why.
+- **Plan a month**: from research + their footage inventory, a table of dates, topic, length, title
+  draft, which footage. Ask how many uploads per week they can really do (1. one 2. two 3. three+).
+- **Shorts from a long video**: `shorts` skill — find 3–8 strong moments, test one first,
+  hook as on-screen text (`ambient.py short … --text "…"`), titles with `#shorts`.
+- **Fix a noise in a finished video** ("a dog barks at 1:02:37"): if it was made with this project,
+  fix the sound in the loop (`audioloop.py` or another window) and rebuild — the noise repeats every
+  loop otherwise. For any other video: `ambient.py patch-sound <file> --at <seconds> --len <seconds>`
+  covers that moment with the sound just before it (picture untouched); make a 20 s preview around the
+  spot (`--preview`) and let the user listen before writing the full file.
 
 ## Rules (always)
 
@@ -109,7 +144,8 @@ result, and only on "yes" run without `--dry-run`. API setup: README → "YouTub
    explicit "yes" for that exact action in this conversation. Always `--dry-run` first.
    Scheduling (`publishAt`) is also only on the user's yes.
 2. **Secrets**: OAuth client, tokens and API keys live only in `.secrets/` (git-ignored).
-   Never paste them into chat, code, `CLAUDE.md`, meta files or anything committed. Never print them.
+   Never paste them into chat, code, `CLAUDE.md`, meta files or anything committed. Never print them,
+   never ask the user to paste them, never copy them in from another project or folder.
 3. **One final version per output**: overwrite tests/loops instead of piling up `v2`, `final_final`,
    copies. Delete intermediate files you created once the final passes `verify`
    (ask before deleting anything big or anything you did not create). Never delete the user's originals.
@@ -142,14 +178,3 @@ examples/              a complete sanitized example (10 h night ocean)
 work/  output/  channel/  .secrets/    local only, git-ignored
 ```
 
----
-
-## Кратко по-русски (для русскоязычных пользователей)
-
-- Отвечай по-русски, если пользователь пишет по-русски. Команды и пути не переводи.
-- Сначала `doctor.py` — узнать систему (Windows: `python`, Mac: `python3`).
-- Вопросы — **по одному**, всегда **с вариантами под номерами**, последний вариант «Другое — напишите своими словами».
-- Порядок: тип канала → видео-образец → где лежат исходники → звук → длинное видео / Shorts → язык.
-- Сначала **короткие тесты 40–60 с со звуком**; попроси слушать в наушниках и написать номер теста и секунду, где что-то не так. Полный рендер — только после «ок».
-- После сборки — `verify` (начало/середина/конец, громкость), потом метаданные: `--dry-run`, показать, и только после «да» отправлять.
-- Никогда не публиковать и не удалять на YouTube без явного «да». Секреты — только в `.secrets/`. Одна финальная версия каждого файла. Перед установками и большими загрузками — спросить. Без стоковых и ИИ-звуков, если пользователь сам не захочет.

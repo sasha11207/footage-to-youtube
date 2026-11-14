@@ -6,7 +6,8 @@
 
 Makes a 75 s test video (ffmpeg testsrc2 picture + "wave-like" noise sound) and a fake field-recorder
 WAV that started 3.5 s earlier, then runs: footage inventory + sync -> scan -> analyze -> pick ->
-test clip -> loop -> seam -> build (3 min) -> verify -> short -> thumbnail -> audioloop.
+test clip -> loop -> seam -> build (3 min) -> verify -> Shorts (with hook text) -> patch-sound ->
+thumbnail -> audioloop.
 Everything goes to demo-work/ (git-ignored); it is deleted at the start of each run.
 Takes about 1-3 minutes. Exit code 0 and "DEMO PASSED" = all good.
 """
@@ -128,6 +129,18 @@ def main():
         check("Short is 1080x1920", (v["width"], v["height"]) == (1080, 1920))
     else:
         check("Short exists", False)
+
+    sh2 = W / "shorts" / "short02-text.mp4"
+    step("Short with hook text", [s / "ambient.py", "short", clip, 30, "--dur", 15, "--text", "Wait for it...\\nit's working",
+                                  "--out", sh2])
+    check("Short with text exists", sh2.exists() and abs(duration(sh2) - 15) < 0.2)
+
+    pv = W / "output" / "demo-3min_fixed_preview.mp4"
+    step("patch-sound preview", [s / "ambient.py", "patch-sound", final, "--at", 95, "--len", 1.5, "--preview"])
+    check("patch-sound preview is 20 s", pv.exists() and abs(duration(pv) - 20) < 0.3)
+    fx = W / "output" / "demo-3min_fixed.mp4"
+    step("patch-sound full", [s / "ambient.py", "patch-sound", final, "--at", 95, "--len", 1.5])
+    check("patched video keeps its length", fx.exists() and abs(duration(fx) - duration(final)) < 0.2)
 
     step("thumbnail", [s / "thumb.py", mp4, 5, "--look", "day", "--big", "3 HOURS", "--sub", "Demo: it's working",
                        "--out", W / "thumbs"])
