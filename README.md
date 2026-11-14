@@ -155,8 +155,11 @@ once. Claude can walk you through it step by step — just say *"help me connect
 1. **Create a Google Cloud project.** Go to https://console.cloud.google.com/ and sign in with the
    Google account that owns your channel. In the top bar open the project picker → **New project** →
    any name (e.g. `my-channel-tools`) → **Create**. Make sure the new project is selected.
-2. **Enable the YouTube API.** Menu ☰ → **APIs & Services → Library** → search
-   **YouTube Data API v3** → open it → **Enable**.
+2. **Enable two YouTube APIs.** Menu ☰ → **APIs & Services → Library** → search
+   **YouTube Data API v3** → open it → **Enable**. Go back to the Library, search
+   **YouTube Analytics API** → **Enable**. (The first one manages your videos; the second lets
+   Claude read your channel statistics: watch time, average view duration, where viewers come
+   from, subscribers per video.)
 3. **OAuth consent screen.** Menu ☰ → **APIs & Services → OAuth consent screen** (in newer
    consoles: **Google Auth Platform**) → **Get started**. App name: anything. User support email and
    developer contact: your email. Audience / user type: **External**. Leave the app in **Testing**.
@@ -170,11 +173,15 @@ once. Claude can walk you through it step by step — just say *"help me connect
    (On a Mac, folders starting with a dot are hidden in Finder: press ⌘ + Shift + . to show them.)
 6. **Sign in once.** Run the command below (or ask Claude to run it). A browser window opens: choose
    your channel's account → if Google says the app isn't verified, click **Continue** (it's your own
-   app) → **Allow**.
+   app) → tick **both** permissions (manage YouTube, view YouTube Analytics) → **Allow**.
    ```bash
    python3 scripts/yt.py auth        # Windows: python scripts/yt.py auth
    ```
    You'll see `signed in; channel: <your channel>`. The sign-in is saved in `.secrets/token.json`.
+
+**Check your statistics:** `python3 scripts/yt.py stats --days 28` (Windows: `python …`) — or just
+ask Claude "How is my channel doing this month?". Already signed in before statistics were added?
+Enable **YouTube Analytics API** (step 2) and run `yt.py auth` once more.
 
 **Optional, for research:** **Credentials → Create credentials → API key** → restrict it to
 "YouTube Data API v3" → save the key as one line in `.secrets/api_key.txt`.

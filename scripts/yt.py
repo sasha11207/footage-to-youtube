@@ -38,8 +38,10 @@ ROOT = Path(__file__).resolve().parent.parent
 SECRETS = ROOT / ".secrets"
 CLIENT = SECRETS / "client_secret.json"
 TOKEN = SECRETS / "token.json"
-SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl"
+# manage your videos + read-only channel statistics (enable "YouTube Analytics API" in the Cloud project too)
+SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/yt-analytics.readonly"
 API = "https://www.googleapis.com/youtube/v3"
+ANALYTICS = "https://youtubeanalytics.googleapis.com/v2"
 
 # python.org Python on macOS may ship without a CA bundle: fall back to the system one
 if sys.platform == "darwin" and not os.environ.get("SSL_CERT_FILE") and Path("/etc/ssl/cert.pem").exists():
@@ -270,17 +272,54 @@ def cmd_apply(a):
             print("  added to playlist", name)
 
 
+def cmd_stats(a):
+    """Channel statistics for the last N days: totals, top videos, traffic sources, devices."""
+    tok = json.loads(TOKEN.read_text()) if TOKEN.exists() else {}
+    if "yt-analytics" not in tok.get("scope", "yt-analytics"):
+        sys.exit("statistics access not granted yet: enable 'YouTube Analytics API' in Google Cloud, "
+                 "then run  scripts/yt.py auth  again (README -> Connect your YouTube channel)")
+    import datetime as dt
+    end = dt.date.today() - dt.timedelta(days=1)          # analytics lag ~1-2 days
+    start = end - dt.timedelta(days=a.days - 1)
+    base = {"ids": "channel==MINE", "startDate": start.isoformat(), "endDate": end.isoformat()}
+
+    def rep(**kw):
+        r = call("GET", "/reports", {**base, **kw}, base=ANALYTICS)
+        return [h["name"] for h in r.get("columnHeaders", [])], r.get("rows") or []
+
+    print(f"Statistics {start} .. {end} (YouTube shows the last 1-2 days later)")
+    h, rows = rep(metrics="views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost")
+    if rows:
+        v, m, avd, sg, sl = rows[0]
+        print(f"  views {v}, watch time {m / 60:.1f} h, average view {avd / 60:.1f} min, "
+              f"subscribers +{sg} -{sl}")
+    h, rows = rep(metrics="views,estimatedMinutesWatched,averageViewDuration", dimensions="video",
+                  sort="-estimatedMinutesWatched", maxResults=a.top)
+    if rows:
+        titles = {i["id"]: i["snippet"]["title"] for i in
+                  call("GET", "/videos", {"part": "snippet", "id": ",".join(r[0] for r in rows)})["items"]}
+        print("  top videos by watch time:")
+        for vid, v, m, avd in rows:
+            print(f"    {m / 60:6.1f} h  {v:5d} views  avg {avd / 60:5.1f} min  {titles.get(vid, vid)[:70]}")
+    for dim, label in (("insightTrafficSourceType", "where viewers come from"), ("deviceType", "devices")):
+        h, rows = rep(metrics="views,estimatedMinutesWatched", dimensions=dim, sort="-estimatedMinutesWatched")
+        if rows:
+            print(f"  {label}: " + ", ".join(f"{r[0].lower()} {r[2] / 60:.1f} h" for r in rows[:6]))
+    print("  (thumbnail click-through rate is only in YouTube Studio, the API does not give it)")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("auth")
     p = sub.add_parser("list"); p.add_argument("--n", type=int, default=10)
     p = sub.add_parser("show"); p.add_argument("video")
+    p = sub.add_parser("stats"); p.add_argument("--days", type=int, default=28); p.add_argument("--top", type=int, default=10)
     p = sub.add_parser("apply"); p.add_argument("video"); p.add_argument("meta")
     p.add_argument("--dry-run", action="store_true"); p.add_argument("--skip-thumb", action="store_true")
     p.add_argument("--confirm-public", action="store_true", help="only after the owner said yes to publishing now")
     a = ap.parse_args()
-    {"auth": cmd_auth, "list": cmd_list, "show": cmd_show, "apply": cmd_apply}[a.cmd](a)
+    {"auth": cmd_auth, "list": cmd_list, "show": cmd_show, "apply": cmd_apply, "stats": cmd_stats}[a.cmd](a)
 
 
 if __name__ == "__main__":

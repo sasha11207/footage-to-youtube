@@ -149,11 +149,18 @@ Check whether `.secrets/client_secret.json` exists (only check that the file exi
 or read its contents into the chat). If it is missing, walk the user through README →
 "Connect your YouTube channel" **one numbered step at a time**: say what to click, then wait for
 "done" (or a screenshot) before the next step:
-1. Create a Google Cloud project. 2. Enable "YouTube Data API v3". 3. OAuth consent screen:
+1. Create a Google Cloud project. 2. Enable "YouTube Data API v3" **and** "YouTube Analytics API". 3. OAuth consent screen:
 External, Testing, add their own Google account as a test user. 4. Create an OAuth client ID of
 type "Desktop app". 5. Download the JSON and save it **themselves** as `.secrets/client_secret.json`
 (show the exact full path on their computer). 6. You run `scripts/yt.py auth`; they sign in
-in the browser window that opens.
+in the browser window that opens and tick both permissions.
+
+**Statistics.** Once signed in, `scripts/yt.py stats --days 28` gives watch time, average view
+duration, subscribers, top videos, traffic sources and devices. Use it whenever the user asks how
+the channel is doing, before planning next videos, and offer a short weekly summary (what to do
+more of, one fix). If it says statistics access is missing, guide them: enable "YouTube Analytics
+API" in the same Cloud project, then run `yt.py auth` again. Thumbnail CTR is only in YouTube
+Studio — ask the user to read it from there when needed.
 Never ask the user to paste a key, client secret or token into the chat, and never write one into
 any file except the git-ignored `.secrets/` (the user saves the downloaded file there). For research
 an API key also works: the user saves it in `.secrets/api_key.txt` themselves.
