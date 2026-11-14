@@ -42,6 +42,7 @@ TOKEN = SECRETS / "token.json"
 SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/yt-analytics.readonly"
 API = "https://www.googleapis.com/youtube/v3"
 ANALYTICS = "https://youtubeanalytics.googleapis.com/v2"
+STATS_DIR = ROOT / "channel" / "stats"   # one JSON snapshot per day (git-ignored)
 
 # python.org Python on macOS may ship without a CA bundle: fall back to the system one
 if sys.platform == "darwin" and not os.environ.get("SSL_CERT_FILE") and Path("/etc/ssl/cert.pem").exists():
@@ -272,29 +273,49 @@ def cmd_apply(a):
             print("  added to playlist", name)
 
 
+def _uploads(n=50):
+    ch = call("GET", "/channels", {"part": "contentDetails,statistics", "mine": "true"})["items"][0]
+    up = ch["contentDetails"]["relatedPlaylists"]["uploads"]
+    items = call("GET", "/playlistItems", {"part": "contentDetails", "playlistId": up, "maxResults": n}).get("items", [])
+    ids = ",".join(i["contentDetails"]["videoId"] for i in items)
+    vids = call("GET", "/videos", {"part": "snippet,statistics,status", "id": ids})["items"] if ids else []
+    return ch["statistics"], vids
+
+
 def cmd_stats(a):
-    """Channel statistics for the last N days: totals, top videos, traffic sources, devices."""
-    tok = json.loads(TOKEN.read_text()) if TOKEN.exists() else {}
+    """Channel statistics: last N days, this week vs last week, and what changed since the last saved snapshot."""
+    import datetime as dt
+    tok = json.load(open(TOKEN)) if os.path.exists(TOKEN) else {}
     if "yt-analytics" not in tok.get("scope", "yt-analytics"):
         sys.exit("statistics access not granted yet: enable 'YouTube Analytics API' in Google Cloud, "
-                 "then run  scripts/yt.py auth  again (README -> Connect your YouTube channel)")
-    import datetime as dt
+                 "then run the auth command again")
     end = dt.date.today() - dt.timedelta(days=1)          # analytics lag ~1-2 days
+    M = "views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost"
+
+    def rep(start, stop, **kw):
+        r = call("GET", "/reports", {"ids": "channel==MINE", "startDate": start.isoformat(),
+                                     "endDate": stop.isoformat(), **kw}, base=ANALYTICS)
+        return r.get("rows") or []
+
+    def tot(start, stop):
+        r = rep(start, stop, metrics=M)
+        v, m, avd, sg, sl = (r[0] if r else [0, 0, 0, 0, 0])
+        return {"views": v, "hours": round(m / 60, 1), "avg_min": round(avd / 60, 1), "subs": sg - sl}
+
     start = end - dt.timedelta(days=a.days - 1)
-    base = {"ids": "channel==MINE", "startDate": start.isoformat(), "endDate": end.isoformat()}
-
-    def rep(**kw):
-        r = call("GET", "/reports", {**base, **kw}, base=ANALYTICS)
-        return [h["name"] for h in r.get("columnHeaders", [])], r.get("rows") or []
-
+    period = tot(start, end)
+    week = tot(end - dt.timedelta(days=6), end)
+    prev = tot(end - dt.timedelta(days=13), end - dt.timedelta(days=7))
     print(f"Statistics {start} .. {end} (YouTube shows the last 1-2 days later)")
-    h, rows = rep(metrics="views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost")
-    if rows:
-        v, m, avd, sg, sl = rows[0]
-        print(f"  views {v}, watch time {m / 60:.1f} h, average view {avd / 60:.1f} min, "
-              f"subscribers +{sg} -{sl}")
-    h, rows = rep(metrics="views,estimatedMinutesWatched,averageViewDuration", dimensions="video",
-                  sort="-estimatedMinutesWatched", maxResults=a.top)
+    print(f"  {a.days} days: views {period['views']}, watch time {period['hours']} h, "
+          f"average view {period['avg_min']} min, subscribers {period['subs']:+d}")
+
+    def ch(k):
+        b, n = prev[k], week[k]
+        return f"{n} ({'+' if n >= b else ''}{round(n - b, 1)} vs previous week)"
+    print(f"  this week: views {ch('views')}, hours {ch('hours')}, subscribers {ch('subs')}")
+    rows = rep(start, end, metrics="views,estimatedMinutesWatched,averageViewDuration", dimensions="video",
+               sort="-estimatedMinutesWatched", maxResults=a.top)
     if rows:
         titles = {i["id"]: i["snippet"]["title"] for i in
                   call("GET", "/videos", {"part": "snippet", "id": ",".join(r[0] for r in rows)})["items"]}
@@ -302,10 +323,41 @@ def cmd_stats(a):
         for vid, v, m, avd in rows:
             print(f"    {m / 60:6.1f} h  {v:5d} views  avg {avd / 60:5.1f} min  {titles.get(vid, vid)[:70]}")
     for dim, label in (("insightTrafficSourceType", "where viewers come from"), ("deviceType", "devices")):
-        h, rows = rep(metrics="views,estimatedMinutesWatched", dimensions=dim, sort="-estimatedMinutesWatched")
-        if rows:
-            print(f"  {label}: " + ", ".join(f"{r[0].lower()} {r[2] / 60:.1f} h" for r in rows[:6]))
+        r = rep(start, end, metrics="views,estimatedMinutesWatched", dimensions=dim, sort="-estimatedMinutesWatched")
+        if r:
+            print(f"  {label}: " + ", ".join(f"{x[0].lower()} {x[2] / 60:.1f} h" for x in r[:6]))
     print("  (thumbnail click-through rate is only in YouTube Studio, the API does not give it)")
+
+    # snapshot: lifetime numbers per video, compared with the previous saved one
+    cst, vids = _uploads()
+    snap = {"date": dt.date.today().isoformat(),
+            "channel": {k: int(cst.get(k, 0)) for k in ("subscriberCount", "viewCount", "videoCount")},
+            "week": week, "period_days": a.days, "period": period,
+            "videos": {v["id"]: {"title": v["snippet"]["title"], "views": int(v["statistics"].get("viewCount", 0)),
+                                 "likes": int(v["statistics"].get("likeCount", 0)),
+                                 "status": v["status"]["privacyStatus"]} for v in vids}}
+    os.makedirs(STATS_DIR, exist_ok=True)
+    old = sorted(f for f in os.listdir(STATS_DIR) if f.endswith(".json") and f[:10] < snap["date"])
+    if old:
+        o = json.load(open(os.path.join(STATS_DIR, old[-1])))
+        c0, c1 = o["channel"], snap["channel"]
+        print(f"  since {o['date']}: subscribers {c1['subscriberCount'] - c0['subscriberCount']:+d}, "
+              f"views {c1['viewCount'] - c0['viewCount']:+d}, videos {c1['videoCount'] - c0['videoCount']:+d}")
+        gain = sorted(((v["views"] - o["videos"].get(k, {}).get("views", 0), v["title"]) for k, v in snap["videos"].items()),
+                      reverse=True)[:5]
+        for g, t in gain:
+            if g > 0:
+                print(f"    +{g:5d} views  {t[:70]}")
+        went_public = [v["title"] for k, v in snap["videos"].items()
+                       if v["status"] == "public" and o["videos"].get(k, {}).get("status") != "public"]
+        for t in went_public:
+            print(f"    now public: {t[:70]}")
+    else:
+        print("  first snapshot: next time you will see what changed")
+    if a.save:
+        path = os.path.join(STATS_DIR, snap["date"] + ".json")
+        json.dump(snap, open(path, "w"), ensure_ascii=False, indent=1)
+        print("  saved", path)
 
 
 def main():
@@ -315,6 +367,7 @@ def main():
     p = sub.add_parser("list"); p.add_argument("--n", type=int, default=10)
     p = sub.add_parser("show"); p.add_argument("video")
     p = sub.add_parser("stats"); p.add_argument("--days", type=int, default=28); p.add_argument("--top", type=int, default=10)
+    p.add_argument("--save", action="store_true", help="save a snapshot to compare next time")
     p = sub.add_parser("apply"); p.add_argument("video"); p.add_argument("meta")
     p.add_argument("--dry-run", action="store_true"); p.add_argument("--skip-thumb", action="store_true")
     p.add_argument("--confirm-public", action="store_true", help="only after the owner said yes to publishing now")

@@ -4,6 +4,8 @@
   python scripts/thumb.py work/loop1/loop.mp4 42 --look day --big "3 HOURS" --sub "Ocean waves at sunrise" --out output/thumbs
 
 Writes OUT/thumb_<look>_text.jpg (with text and a small badge) and OUT/thumb_<look>_clean.jpg (no text).
+For YouTube Studio "Test & Compare" make 2-3 variants with --suffix _a / _b (another frame, other words),
+and use the clean one as the third variant: thumb_<look>_text_a.jpg, thumb_<look>_text_b.jpg, ...
 --badge "" removes the badge. Pick the frame second by looking at the video or the pick contact sheets.
 Works on macOS, Windows and Linux (finds a system font automatically, or pass --font).
 """
@@ -28,6 +30,7 @@ def main():
     p.add_argument("--align", choices=["left", "right"], default="left")
     p.add_argument("--badge", default="REAL SOUND · NO AI")
     p.add_argument("--font", default="", help="path to a .ttf/.ttc font")
+    p.add_argument("--suffix", default="", help="variant name for A/B tests, e.g. _a, _b")
     p.add_argument("--out", required=True)
     a = p.parse_args()
     out = Path(a.out)
@@ -51,10 +54,10 @@ def main():
                      f"box=1:boxcolor=black@0.55:boxborderw=14")
     base = f"{LIFT[a.look]},scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720"
     for name, vf in (("text", ",".join([base] + parts)), ("clean", base)):
-        run(FF + ["-v", "error", "-i", hit.name, "-vf", vf, "-q:v", "2", f"thumb_{a.look}_{name}.jpg"], cwd=out)
+        run(FF + ["-v", "error", "-i", hit.name, "-vf", vf, "-q:v", "2", f"thumb_{a.look}_{name}{a.suffix}.jpg"], cwd=out)
     for n in ("frame.png", "big.txt", "sub.txt", "badge.txt"):
         (out / n).unlink(missing_ok=True)
-    print("->", out / f"thumb_{a.look}_text.jpg", "and", out / f"thumb_{a.look}_clean.jpg")
+    print("->", out / f"thumb_{a.look}_text{a.suffix}.jpg", "and", out / f"thumb_{a.look}_clean{a.suffix}.jpg")
 
 
 if __name__ == "__main__":

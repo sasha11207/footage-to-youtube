@@ -232,6 +232,21 @@ So you can fill in dozens of videos and run ~50 searches a day for free.
 The folders `work/`, `output/`, `channel/`, `demo-work/` and `.secrets/` are created on your
 computer and are never committed.
 
+## Good to know (rules that protect your channel)
+
+- **You upload by hand** in YouTube Studio (as Private). Claude never uploads through the API or any
+  bot: API uploads from unverified projects stay locked to private, and automation can look like
+  spam to YouTube. Claude fills in everything else after you upload.
+- **Your own footage and sound only.** Colour, night look, noise cleanup and loops are fine;
+  AI-generated video, sound, music or "AI-enhanced" pictures are not — YouTube's "inauthentic
+  content" rules can take away monetization. Claude warns you if a request goes that way.
+- **No "template channel".** Each video is a different place or scene, with 2–3 description lines
+  true only for it (place, time, weather, how the sound was recorded).
+- **Weekly check-up.** `yt.py stats --save` saves a snapshot; next time you see what grew and what
+  dropped, plus one suggestion. Claude runs it by itself when the last one is a week old.
+- **Thumbnail A/B test.** Claude makes 3 thumbnail variants for every video; upload them in
+  Studio → the video → Thumbnail → **Test & compare**, and YouTube picks the winner.
+
 ## Long renders: keep the computer awake
 
 A 10-hour video can take a few hours to render. Claude keeps your computer awake while it runs

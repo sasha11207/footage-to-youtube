@@ -155,17 +155,20 @@ type "Desktop app". 5. Download the JSON and save it **themselves** as `.secrets
 (show the exact full path on their computer). 6. You run `scripts/yt.py auth`; they sign in
 in the browser window that opens and tick both permissions.
 
-**Statistics.** Once signed in, `scripts/yt.py stats --days 28` gives watch time, average view
-duration, subscribers, top videos, traffic sources and devices. Use it whenever the user asks how
-the channel is doing, before planning next videos, and offer a short weekly summary (what to do
-more of, one fix). If it says statistics access is missing, guide them: enable "YouTube Analytics
-API" in the same Cloud project, then run `yt.py auth` again. Thumbnail CTR is only in YouTube
-Studio — ask the user to read it from there when needed.
-Never ask the user to paste a key, client secret or token into the chat, and never write one into
-any file except the git-ignored `.secrets/` (the user saves the downloaded file there). For research
-an API key also works: the user saves it in `.secrets/api_key.txt` themselves.
-Quota is free: 10,000 units per day. Metadata update ≈ 50 units, thumbnail 50, playlist add 50,
-one research search ≈ 100. Don't run more than ~20 searches a day.
+**Statistics.** Once signed in, `scripts/yt.py stats --save` shows the last 28 days (watch time,
+average view duration, subscribers, top videos, traffic sources, devices), this week vs last week,
+and what changed since the last saved snapshot (`channel/stats/DATE.json`, git-ignored).
+At the start of a conversation, if the channel is connected and the newest snapshot is older than
+7 days (or there is none), run it and tell the user in 3 short lines: what grew, what dropped, and
+ONE suggestion (e.g. "night videos hold viewers 5x longer — make the next two at night").
+Also run it before planning new videos. If access is missing, guide them: enable "YouTube
+Analytics API" in the same Cloud project, then run `yt.py auth` again. Thumbnail click-through
+rate is only in YouTube Studio — ask the user to read it from there when needed.
+
+**Thumbnail A/B test.** For every new video make 3 thumbnail variants for YouTube Studio
+"Test & Compare" (Studio → the video → Thumbnail → Test & compare): `thumb.py ... --suffix _a`,
+another frame and other words with `--suffix _b`, and the clean one as the third. Tell the user
+where the three files are; YouTube picks the winner by watch time.
 
 ## Other common requests
 
@@ -207,6 +210,23 @@ one research search ≈ 100. Don't run more than ~20 searches a day.
 8. If a command fails, read the error, explain it in one plain sentence, fix it. Don't hand the
    user raw tracebacks unless they ask.
 9. Don't invent facts for descriptions (place names, what was filmed): ask the user.
+10. **Uploads are always done by hand** in YouTube Studio (as Private), never through the API or
+    any bot/automation. API uploads from unverified Google projects are locked to private, and
+    automated uploading can look like spam to YouTube and hurt the account or its reach. Claude
+    only fills in metadata after the user has uploaded. Same for views, likes, comments and
+    subscribers: never automate them in any way.
+11. **Authentic content only.** Processing the user's own footage and sound is fine (colour,
+    night look, denoise, loops, loudness, stabilising). Generating content is not: no AI-generated
+    or AI-"enhanced" video frames, sound, music, voices or upscaled detail, and no stock clips
+    presented as the user's own. If the user asks for that, warn them first: YouTube's
+    "inauthentic content" rules can remove monetization, and it breaks a "Real Sound · No AI"
+    promise. (The `videogen` skill from reel-skills generates AI video — don't use it for such
+    channels.)
+12. **Avoid "repetitive / template" channels.** YouTube can demonetize channels whose videos look
+    made from one template, even if each file is technically new. Every video: a different place
+    or a clearly different scene, and 2–3 description lines that are true only for this video
+    (place, time of day, weather, how the sound was recorded). Vary title wording; don't publish
+    the same footage over and over under new names. Warn the user if a plan drifts that way.
 
 ## Project map
 
@@ -216,8 +236,8 @@ scripts/run_demo.py    self-test on a synthetic clip (must end with DEMO PASSED)
 scripts/footage.py     inventory a folder/drive; sync recorder sound to video
 scripts/ambient.py     scan / analyze / pick / test / loop / seam / build / verify / short
 scripts/audioloop.py   clean sound bed from hand-picked pieces, tiled to the loop length
-scripts/thumb.py       thumbnail 1280x720 with text
-scripts/yt.py          YouTube metadata via API (auth, list, show, apply --dry-run)
+scripts/thumb.py       thumbnail 1280x720 with text; --suffix _a/_b for A/B test variants
+scripts/yt.py          YouTube via API: auth, list, show, apply --dry-run, stats --save (no uploads)
 scripts/research.py    competitor research: search / channel, outlier ranking
 templates/             meta.json and channel profile templates
 examples/              a complete sanitized example (10 h night ocean)
