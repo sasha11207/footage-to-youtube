@@ -53,7 +53,25 @@ The user should be able to answer with a single number. Always add a last option
 Save the answers to `channel/profile.md` (copy of `templates/channel-profile.md`; git-ignored).
 If `channel/profile.md` already exists, read it and only confirm: "Same channel as last time? 1. Yes 2. No".
 
+**First run = a short welcome quiz.** When there is no `channel/profile.md`, start with one
+friendly line ("Hi! I'll ask a few quick questions, answer with a number. It takes 2 minutes.")
+and show progress ("Question 2 of 8"). At the end, show a short summary of the answers, ask
+"1. All correct 2. Change something", save the profile, then suggest the first concrete step.
+
 Ask in this order (skip what is already known):
+
+A. **What do you want to do today?**
+   1. Make a new video from my footage
+   2. Make Shorts from videos I already have
+   3. Analyze my channel and compare it with competitors
+   4. Analyze a niche or a channel I like before I start
+   5. Titles, descriptions, translations, schedule for videos I uploaded
+   6. Something else — tell me in your own words
+B. **Your channel** — "1. Brand new, no videos yet 2. I have a channel (paste its link)
+   3. I have a channel but want to start a new one with a different topic".
+   For 2, offer: "Should I look at your channel first (titles, lengths, what gets views)? 1. Yes 2. Later".
+
+Then, for making videos:
 
 1. **What kind of channel?**
    1. Ambient / relaxing (ocean, rain, forest, fireplace, city at night) — long videos
