@@ -167,15 +167,20 @@ rate is only in YouTube Studio — ask the user to read it from there when neede
 
 **Thumbnails and titles: ask the approach first.** Before making them for a new video (or once
 per channel, then save the answer in `channel/profile.md`), ask:
-"How should we choose the thumbnail and title? 1. Copy what already works: I analyze the top
-videos in your niche (research skill: outliers, their title formula, thumbnail text, colours) and
-adapt the best to your video 2. Test our own ideas: 3 different variants for YouTube's A/B test
-3. Both: one variant built on the competitors' winning formula + two of our own (recommended)
+"How should we choose the thumbnail and title? 1. Do it like the most-viewed videos in your niche
+(recommended if you're not sure): I look at the top videos (research skill: views per day, their
+title formula, thumbnail framing, text or no text, colours) and make yours the same way with your
+own footage 2. Test our own ideas: 3 different variants for YouTube's A/B test
+3. Both: one variant built on the competitors' winning formula + two of our own
 4. Just one thumbnail and title, no test".
 For a test: `thumb.py ... --suffix _a`, another frame and other words with `--suffix _b`, plus the
 clean one; tell the user where the files are and how to start it (Studio → the video →
 Thumbnail → Test & compare; YouTube picks the winner by watch time). Day thumbnails: check the
 big text is readable on a bright sky (darker frame or shadow), never copy a competitor's image.
+Download competitor thumbnails only to look at them (`https://i.ytimg.com/vi/<id>/mqdefault.jpg`,
+into `work/`), describe the pattern to the user, then build ours from our own frames. Example
+finding for sleep-ocean videos (2026): most top thumbnails have no text at all — a close crop of
+white foam on cold blue, darker edges.
 
 ## Other common requests
 
