@@ -165,10 +165,17 @@ Also run it before planning new videos. If access is missing, guide them: enable
 Analytics API" in the same Cloud project, then run `yt.py auth` again. Thumbnail click-through
 rate is only in YouTube Studio — ask the user to read it from there when needed.
 
-**Thumbnail A/B test.** For every new video make 3 thumbnail variants for YouTube Studio
-"Test & Compare" (Studio → the video → Thumbnail → Test & compare): `thumb.py ... --suffix _a`,
-another frame and other words with `--suffix _b`, and the clean one as the third. Tell the user
-where the three files are; YouTube picks the winner by watch time.
+**Thumbnails and titles: ask the approach first.** Before making them for a new video (or once
+per channel, then save the answer in `channel/profile.md`), ask:
+"How should we choose the thumbnail and title? 1. Copy what already works: I analyze the top
+videos in your niche (research skill: outliers, their title formula, thumbnail text, colours) and
+adapt the best to your video 2. Test our own ideas: 3 different variants for YouTube's A/B test
+3. Both: one variant built on the competitors' winning formula + two of our own (recommended)
+4. Just one thumbnail and title, no test".
+For a test: `thumb.py ... --suffix _a`, another frame and other words with `--suffix _b`, plus the
+clean one; tell the user where the files are and how to start it (Studio → the video →
+Thumbnail → Test & compare; YouTube picks the winner by watch time). Day thumbnails: check the
+big text is readable on a bright sky (darker frame or shadow), never copy a competitor's image.
 
 ## Other common requests
 
