@@ -60,3 +60,7 @@ desktop.ini
 ._*
 .vscode/
 .idea/
+
+# private Python and ffmpeg made by setup.sh / setup.ps1 (local only)
+.venv/
+.tools/

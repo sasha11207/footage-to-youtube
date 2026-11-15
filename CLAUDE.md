@@ -5,7 +5,8 @@ YouTube videos: long ambient videos (1–10+ hours) and/or Shorts. They may neve
 terminal or an AI assistant. Be patient, concrete and brief. Never assume they know a term —
 explain it in one short sentence the first time ("LUFS = how loud the video sounds").
 
-Tools live in `scripts/` (Python 3 standard library + ffmpeg, no pip installs).
+Tools live in `scripts/` (Python 3 standard library + ffmpeg, no pip installs). Python and
+ffmpeg are set up inside this folder (`.venv/`, `.tools/`), never system-wide — see section 1.
 Detailed playbooks live in `.claude/skills/`:
 - `ambient-long` — the proven long-video pipeline (shoot, test, loop, build, verify, metadata)
 - `research` — competitor analysis with the YouTube Data API (outliers)
@@ -29,21 +30,52 @@ the folder is a git clone, run `git fetch` quietly and compare with `git status 
 remote has new commits, tell the user in one line what changed (`git log --oneline HEAD..@{u}`)
 and offer: "1. Update now (git pull) 2. Later". Never pull over the user's uncommitted changes
 without asking; never push unless the user asks.
+If the folder was downloaded as a ZIP (no `.git`), skip the check; if the user asks to update,
+download the new ZIP into a fresh folder and offer to copy over `channel/`, `.secrets/`, `work/`
+and `output/`.
 
-## 1. First thing in every new conversation: detect the computer
+## 1. First thing in every new conversation: set up / detect the computer
 
-Run `python scripts/doctor.py` (Windows) or `python3 scripts/doctor.py` (macOS/Linux) —
-if one fails, try the other. It prints the OS and what is missing.
+**Everything this project needs lives inside the project folder.** Never install Python, ffmpeg
+or anything else system-wide (no Homebrew, winget, apt, installers, PATH or settings changes)
+unless the user explicitly asks for a system-wide install. The user is often not technical:
+do the setup yourself, they should only answer with a number.
 
-- **Windows**: use `python` (not `python3`), PowerShell syntax, paths like `"D:/Footage/Beach"`
-  (forward slashes work everywhere and avoid escaping). Never use `rm -rf`, `open`, `/Volumes`.
+**Detect the system before anything else**: macOS, Windows or Linux, and the CPU (Apple
+silicon / Intel / ARM). macOS/Linux: `uname -s` and `uname -m`; Windows: `$env:OS` and
+`$env:PROCESSOR_ARCHITECTURE`. Every command, path and setup script depends on it (bullets
+below). Tell the user in one line what you found.
+
+**Project Python** = `.venv/bin/python` (macOS/Linux) or `.venv\Scripts\python.exe` (Windows).
+Use it for every script. Where this file or a skill says `python3 scripts/x.py` or
+`python scripts/x.py`, run it with the project Python instead.
+
+**No `.venv` yet → first-time setup:**
+1. Show the plan (changes nothing):
+   macOS/Linux: `sh setup.sh` · Windows: `powershell -ExecutionPolicy Bypass -File setup.ps1`
+   (`Bypass` applies only to that one run; it changes no settings.)
+2. Tell the user in plain words what it will download, from where and how big (the plan prints
+   it; often nothing, if Python 3.9+ and a full ffmpeg are already on the computer), that it all
+   goes into this folder only, and that deleting the folder removes everything. Ask:
+   "1. Yes, set it up 2. Not now".
+3. On yes: `sh setup.sh --yes` · `powershell -ExecutionPolicy Bypass -File setup.ps1 -Yes`.
+   It creates `.venv` (from an existing Python, or a private Python 3.12 via uv in `.tools/`),
+   downloads ffmpeg into `.tools/ffmpeg/` only if the system one is missing or incomplete
+   (`scripts/common.py` puts it first on PATH), and ends with the doctor check.
+4. If a download fails (no internet, a blocked site), say so in one line and offer
+   "1. Try again 2. Install it system-wide instead (I'll show the steps) 3. Later".
+
+**`.venv` exists →** run `<project Python> scripts/doctor.py`. It prints the OS and what is
+missing; if something is missing, offer to run setup again (step 1).
+
+- **Windows**: PowerShell syntax, paths like `"D:/Footage/Beach"` (forward slashes work
+  everywhere and avoid escaping). Never use `rm -rf`, `open`, `/Volumes`.
   To open a file for the user: `start "" "path"`; folder: `explorer "path"`.
-- **macOS**: `python3`, paths like `"/Volumes/MyDrive/Footage"`. Open a file: `open "path"`.
-- **Linux**: `python3`, open: `xdg-open "path"`.
+- **macOS**: paths like `"/Volumes/MyDrive/Footage"`. Open a file: `open "path"`.
+- **Linux**: open: `xdg-open "path"`.
 - Always quote paths (they often contain spaces).
 
-If something is missing, show the exact install lines doctor printed and **ask before installing**
-(see rules). After installing, run doctor again. Then, once, offer to run the self-test
+After the first successful setup, once, offer to run the self-test
 (`scripts/run_demo.py`, ~2–4 minutes) so both of you know the computer works.
 
 ## 2. Ask questions — ONE topic at a time, ALWAYS with numbered options
@@ -262,7 +294,9 @@ data says it works, recommend it. Never add sounds or effects the user did not a
 ## Project map
 
 ```
-scripts/doctor.py      check computer, print install steps (Mac: Homebrew, Windows: winget)
+setup.sh / setup.ps1   one-time setup: .venv + ffmpeg inside this folder (shows a plan first)
+scripts/get_ffmpeg.py  download ffmpeg into .tools/ffmpeg (used by setup)
+scripts/doctor.py      check computer, say what is missing
 scripts/run_demo.py    self-test on a synthetic clip (must end with DEMO PASSED)
 scripts/footage.py     inventory a folder/drive; sync recorder sound to video
 scripts/ambient.py     scan / analyze / pick / test / loop / seam / build / verify / short

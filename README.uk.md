@@ -36,60 +36,56 @@
 
 ---
 
-## Налаштування за 10 хвилин
+## Налаштування: Claude усе зробить сам
 
-Потрібні: **Claude Code** (обліковий запис Anthropic), **Python 3**, **ffmpeg** і **git**.
+Потрібен лише **застосунок Claude для комп'ютера** (обліковий запис Anthropic із Claude Code).
+Без Термінала і без ручного встановлення програм.
 
-### macOS
+1. Встановіть застосунок Claude з https://claude.com/download, увійдіть і відкрийте вкладку **Code**.
+2. Створіть порожню папку для проєкту (наприклад `Documents/footage-to-youtube`) і виберіть її
+   як робочу папку у вкладці Code.
+3. Надішліть Claude таке повідомлення:
+   > Налаштуй цей проєкт у цій папці: https://github.com/sasha11207/footage-to-youtube — виконай «Setup steps for Claude» з його README.
+4. Claude завантажить проєкт, перевірить комп'ютер і скаже, чого ще бракує (часто нічого).
+   Відповідайте **1**, щоб погодитися. Потім він запропонує короткий самотест і 2-хвилинне вітальне опитування.
 
-1. Відкрийте **Термінал** (⌘ + Пробіл, введіть «Terminal», Enter).
-2. Встановіть Homebrew, якщо його немає: скопіюйте команду з https://brew.sh і вставте в Термінал.
-3. Встановіть програми:
-   ```bash
-   brew install python ffmpeg git
-   ```
-4. Встановіть Claude Code: https://claude.com/claude-code (застосунок або версія для термінала).
-5. Завантажте проєкт і перевірте комп'ютер:
-   ```bash
-   cd ~
-   git clone https://github.com/sasha11207/footage-to-youtube.git
-   cd footage-to-youtube
-   python3 scripts/doctor.py
-   python3 scripts/run_demo.py
-   ```
-   Демо триває 3–5 хвилин і має закінчитися словами **DEMO PASSED**.
+**Усе ставиться всередину папки проєкту**: Python у `.venv`, ffmpeg у `.tools` (лише якщо їх ще
+немає на комп'ютері). На решту комп'ютера нічого не встановлюється і налаштування не змінюються,
+тож нічого іншого не зламається. Щоб усе прибрати, просто видаліть папку.
 
-### Windows 10 / 11
-
-1. Відкрийте **PowerShell** (Пуск → введіть «PowerShell» → Enter).
-2. Встановіть програми, по одному рядку (якщо Windows питає — відповідайте «Так»):
-   ```powershell
-   winget install -e --id Python.Python.3.12
-   winget install -e --id Gyan.FFmpeg
-   winget install -e --id Git.Git
-   ```
-3. **Закрийте PowerShell і відкрийте знову** (щоб він побачив нові програми).
-4. Встановіть Claude Code: https://claude.com/claude-code
-5. Завантажте проєкт і перевірте комп'ютер:
-   ```powershell
-   cd $HOME
-   git clone https://github.com/sasha11207/footage-to-youtube.git
-   cd footage-to-youtube
-   python scripts/doctor.py
-   python scripts/run_demo.py
-   ```
-   Має закінчитися словами **DEMO PASSED**. Якщо `python` відкриває Microsoft Store — закрийте його,
-   перезапустіть PowerShell і спробуйте ще раз (або встановіть Python з https://www.python.org/downloads/
-   і поставте галочку «Add python.exe to PATH»).
+Якщо на Windows застосунок Claude попросить **Git for Windows**, встановіть його з https://git-scm.com —
+це єдине, що, можливо, доведеться встановити самостійно.
 
 З відеокартою NVIDIA чи Intel (використовується автоматично) і на Mac з Apple silicon рендер швидший.
-Для 10-годинного відео 4K залиште 60+ ГБ вільного місця.
+Для 10-годинного відео 4K залиште 60+ ГБ вільного місця. Пишіть будь-якою мовою — Claude
+відповідатиме тією мовою, якою пишете ви.
 
-### Відкрийте в Claude Code
+### Кроки налаштування для Claude
 
-Відкрийте папку `footage-to-youtube` у Claude Code (застосунок: виберіть папку; термінал:
-`cd footage-to-youtube`, потім `claude`). Claude прочитає `CLAUDE.md` і знатиме весь процес.
-Пишіть будь-якою мовою — Claude відповідатиме тією мовою, якою пишете ви.
+*(Цю частину читає Claude, її можна пропустити. Повна версія — англійською в README.md,
+розділ «Setup steps for Claude».)*
+
+1. **Спершу визначити систему** (macOS, Windows чи Linux, і процесор) і від неї вибирати всі команди:
+   на macOS/Linux — `sh`, на Windows — PowerShell. Одним рядком сказати користувачу, що знайдено.
+2. Працювати в папці, яку відкрив користувач: `git clone` у неї, а без git — ZIP з GitHub
+   (`curl` + `tar -xf`). Якщо папка не порожня — підпапка `footage-to-youtube`.
+3. Прочитати `CLAUDE.md` і виконати розділ 1 (`setup.sh` / `setup.ps1`: показати план, спитати,
+   запустити). Нічого не встановлювати на весь комп'ютер.
+4. Почати вітальне опитування з `CLAUDE.md`.
+
+<details>
+<summary>Ручне налаштування в терміналі (якщо вам так зручніше)</summary>
+
+```bash
+git clone https://github.com/sasha11207/footage-to-youtube.git
+cd footage-to-youtube
+sh setup.sh --yes                                            # macOS / Linux
+powershell -ExecutionPolicy Bypass -File setup.ps1 -Yes      # Windows (PowerShell)
+```
+Потім відкрийте папку `footage-to-youtube` у Claude Code (застосунок: виберіть папку;
+термінал: `claude`). Запустіть `sh setup.sh` без `--yes` (або `setup.ps1` без `-Yes`), щоб лише
+побачити, що буде завантажено.
+</details>
 
 ---
 
@@ -222,7 +218,8 @@ Claude спитає: скільки триває шум і чи зроблене
 | `.claude/skills/ambient-long/` | Інструкція для довгих відео (поради зі зйомки → готове відео → метадані) |
 | `.claude/skills/research/` | Аналіз конкурентів і рейтинг аутлаєрів |
 | `.claude/skills/shorts/` | Shorts: вбудована вертикальна нарізка + два безкоштовні зовнішні набори |
-| `scripts/doctor.py` | Перевіряє комп'ютер, показує точні кроки встановлення |
+| `setup.sh`, `setup.ps1` | Одноразове налаштування: Python і ffmpeg лише всередині цієї папки |
+| `scripts/doctor.py` | Перевіряє комп'ютер, каже, чого бракує |
 | `scripts/run_demo.py` | Самоперевірка на згенерованому кліпі |
 | `scripts/footage.py` | Опис ваших кадрів, пошук дублікатів, синхронізація звуку рекордера |
 | `scripts/ambient.py` | Аналіз, вибір, тест, петля, перевірка шва, збірка, перевірка, Short, виправлення звуку |
@@ -234,7 +231,7 @@ Claude спитає: скільки триває шум і чи зроблене
 | `templates/` | Шаблони метаданих відео і профілю каналу |
 | `examples/night-ocean/` | Повний приклад: 10-годинне відео нічного океану |
 
-Папки `work/`, `output/`, `channel/`, `demo-work/` і `.secrets/` створюються на вашому комп'ютері
+Папки `.venv/`, `.tools/`, `work/`, `output/`, `channel/`, `demo-work/` і `.secrets/` створюються на вашому комп'ютері
 і ніколи не потрапляють у git.
 
 ## Варто знати (правила, що захищають ваш канал)
@@ -260,6 +257,7 @@ Claude спитає: скільки триває шум і чи зроблене
 
 ## Оновлення
 
+Claude перевіряє оновлення на початку розмови і пропонує оновити. Вручну:
 ```bash
 git pull
 ```
@@ -271,4 +269,5 @@ git pull
 [reel-skills](https://github.com/danilbogdan/reel-skills) (danilbogdan) і
 [youtube-agent-skill](https://github.com/Jakeschincariol/youtube-agent-skill) (Jake Schincariol).
 Їхній код сюди не входить; встановлюйте їх з їхніх репозиторіїв, якщо потрібно.
-Потрібен [ffmpeg](https://ffmpeg.org), встановлюється окремо.
+Використовує [ffmpeg](https://ffmpeg.org) (налаштування завантажить його, якщо на комп'ютері немає)
+і, якщо потрібно, [uv](https://github.com/astral-sh/uv) для окремого Python.

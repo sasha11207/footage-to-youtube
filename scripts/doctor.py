@@ -5,6 +5,9 @@
     python3 scripts/doctor.py         (macOS / Linux)
 
 Nothing is installed by this script. It only checks and prints instructions.
+The easy fix for anything missing is the project setup, which puts Python and ffmpeg inside
+this folder only:  sh setup.sh --yes  (macOS/Linux)  or
+powershell -ExecutionPolicy Bypass -File setup.ps1 -Yes  (Windows).
 """
 import platform
 import shutil
@@ -39,8 +42,8 @@ INSTALL = {
         "python": "In PowerShell:\n    winget install -e --id Python.Python.3.12\n"
                   "Then close and reopen PowerShell. (Or download from https://www.python.org/downloads/ and tick 'Add to PATH'.)",
         "ffmpeg": "In PowerShell:\n    winget install -e --id Gyan.FFmpeg\nThen close and reopen PowerShell (and Claude Code) so 'ffmpeg' is found.",
-        "full": "Your ffmpeg is a reduced build. Install the full build:\n    winget uninstall Gyan.FFmpeg.Essentials\n"
-                "    winget install -e --id Gyan.FFmpeg",
+        "full": "Your ffmpeg lacks some filters. Easiest: let setup put a complete copy in this folder\n"
+                "(powershell -ExecutionPolicy Bypass -File setup.ps1 -Yes), or: winget install -e --id Gyan.FFmpeg",
         "git": "In PowerShell:\n    winget install -e --id Git.Git",
     },
     "linux": {
@@ -123,7 +126,10 @@ def main():
     if not problems:
         print("All good. You can render videos on this computer.")
         return 0
-    print("To fix, do this (then run doctor again):\n")
+    setup = ("powershell -ExecutionPolicy Bypass -File setup.ps1 -Yes" if OS == "windows" else "sh setup.sh --yes")
+    print("Easiest fix: run the project setup. It downloads what is missing into this folder only\n"
+          "(no system changes):\n    " + setup + "\n")
+    print("Or install system-wide yourself (then run doctor again):\n")
     for p in problems:
         print(INSTALL[OS][p] + "\n")
     return 1

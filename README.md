@@ -35,60 +35,62 @@ leaves your computer and never goes into git.
 
 ---
 
-## 10-minute setup
+## Setup: Claude does it for you
 
-You need: **Claude Code** (an Anthropic account), **Python 3**, **ffmpeg** and **git**.
+You only need the **Claude desktop app** (an Anthropic account with Claude Code). No Terminal and
+no installing programs by hand.
 
-### macOS
+1. Install the Claude app from https://claude.com/download, sign in and open the **Code** tab.
+2. Make an empty folder for the project (for example `Documents/footage-to-youtube`) and choose it
+   as the working folder in the Code tab.
+3. Send Claude this message:
+   > Set up this project for me in this folder: https://github.com/sasha11207/footage-to-youtube — follow the "Setup steps for Claude" in its README.
+4. Claude downloads the project, checks your computer and tells you what is still missing (often
+   nothing). Answer **1** to say yes. Then it offers a short self-test and a 2-minute welcome quiz.
 
-1. Open **Terminal** (⌘ + Space, type "Terminal", Enter).
-2. Install Homebrew if you don't have it: copy the command from https://brew.sh and paste it into Terminal.
-3. Install the tools:
-   ```bash
-   brew install python ffmpeg git
-   ```
-4. Install Claude Code: https://claude.com/claude-code (desktop app or terminal version).
-5. Download this project and check your computer:
-   ```bash
-   cd ~
-   git clone https://github.com/sasha11207/footage-to-youtube.git
-   cd footage-to-youtube
-   python3 scripts/doctor.py
-   python3 scripts/run_demo.py
-   ```
-   The demo takes 3–5 minutes and must end with **DEMO PASSED**.
+**Everything goes inside the project folder**: Python in `.venv`, ffmpeg in `.tools` (only if your
+computer doesn't already have them). Nothing is installed on the rest of the computer and no
+settings are changed, so nothing else can break. To remove it all, delete the folder.
 
-### Windows 10 / 11
-
-1. Open **PowerShell** (Start → type "PowerShell" → Enter).
-2. Install the tools, one line at a time (answer "Yes" if Windows asks):
-   ```powershell
-   winget install -e --id Python.Python.3.12
-   winget install -e --id Gyan.FFmpeg
-   winget install -e --id Git.Git
-   ```
-3. **Close PowerShell and open it again** (so it finds the new programs).
-4. Install Claude Code: https://claude.com/claude-code
-5. Download this project and check your computer:
-   ```powershell
-   cd $HOME
-   git clone https://github.com/sasha11207/footage-to-youtube.git
-   cd footage-to-youtube
-   python scripts/doctor.py
-   python scripts/run_demo.py
-   ```
-   Must end with **DEMO PASSED**. If `python` opens the Microsoft Store, close it, reopen PowerShell
-   and try again (or install Python from https://www.python.org/downloads/ and tick
-   "Add python.exe to PATH").
+On Windows, if the Claude app asks for **Git for Windows**, install it from https://git-scm.com —
+that is the only thing you might need to install yourself.
 
 Rendering is faster with an NVIDIA or Intel graphics card (used automatically) and on Apple-silicon
-Macs. Keep 60+ GB free for a 10-hour 4K video.
+Macs. Keep 60+ GB free for a 10-hour 4K video. Write in any language — Claude answers in the
+language you write in.
 
-### Open it in Claude Code
+### Setup steps for Claude
 
-Open the `footage-to-youtube` folder in Claude Code (desktop app: choose the folder; terminal:
-`cd footage-to-youtube`, then `claude`). Claude reads `CLAUDE.md` and knows the whole workflow.
-Write in any language — Claude answers in the language you write in.
+*(Claude reads this part. You can skip it.)*
+
+1. **Detect the system first** and use it for every command below: macOS / Linux (`uname -s`,
+   `uname -m`; POSIX shell) or Windows (`$env:OS`, `$env:PROCESSOR_ARCHITECTURE`; PowerShell,
+   `curl.exe` instead of `curl`). Tell the user in one line what you found
+   ("Windows 11, Intel/AMD 64-bit").
+2. Work in the folder the user opened. If it is empty and git works, run
+   `git clone https://github.com/sasha11207/footage-to-youtube.git .` (on macOS check `xcode-select -p` first: without Command Line Tools,
+   `git` opens an install dialog). Without git: download
+   `https://github.com/sasha11207/footage-to-youtube/archive/refs/heads/main.zip` with `curl -L -o project.zip`, extract it with
+   `tar -xf project.zip` (works on macOS and Windows 10+), move the contents of
+   `footage-to-youtube-main/` into the folder and delete the ZIP. If the folder is not empty, use a
+   subfolder `footage-to-youtube` and tell the user to open that folder in the app next time.
+3. Read `CLAUDE.md` and follow it. Its section 1 is the setup: `setup.sh` (macOS/Linux) or
+   `setup.ps1` (Windows) — show the plan, ask the user, then run it. Install nothing system-wide.
+4. Then start the welcome quiz from `CLAUDE.md`.
+
+<details>
+<summary>Manual setup in a terminal (if you prefer)</summary>
+
+```bash
+git clone https://github.com/sasha11207/footage-to-youtube.git
+cd footage-to-youtube
+sh setup.sh --yes                                            # macOS / Linux
+powershell -ExecutionPolicy Bypass -File setup.ps1 -Yes      # Windows (PowerShell)
+```
+Then open the `footage-to-youtube` folder in Claude Code (desktop app: choose the folder;
+terminal: `claude`). Run `sh setup.sh` without `--yes` (or `setup.ps1` without `-Yes`) to only see
+what it would download.
+</details>
 
 ---
 
@@ -217,7 +219,8 @@ So you can fill in dozens of videos and run ~50 searches a day for free.
 | `.claude/skills/ambient-long/` | The long-video playbook (shooting tips → final video → metadata) |
 | `.claude/skills/research/` | Competitor research and outlier ranking |
 | `.claude/skills/shorts/` | Shorts: built-in vertical cuts + two free external skill packs |
-| `scripts/doctor.py` | Checks your computer, prints exact install steps |
+| `setup.sh`, `setup.ps1` | One-time setup: Python and ffmpeg inside this folder only |
+| `scripts/doctor.py` | Checks your computer, says what is missing |
 | `scripts/run_demo.py` | Self-test on a generated clip |
 | `scripts/footage.py` | Lists your footage, finds duplicates, syncs recorder sound |
 | `scripts/ambient.py` | Analyze, pick, test, loop, seam check, build, verify, Short, patch-sound |
@@ -229,7 +232,7 @@ So you can fill in dozens of videos and run ~50 searches a day for free.
 | `templates/` | Templates for video metadata and your channel profile |
 | `examples/night-ocean/` | A full example: a 10-hour night ocean video |
 
-The folders `work/`, `output/`, `channel/`, `demo-work/` and `.secrets/` are created on your
+The folders `.venv/`, `.tools/`, `work/`, `output/`, `channel/`, `demo-work/` and `.secrets/` are created on your
 computer and are never committed.
 
 ## Good to know (rules that protect your channel)
@@ -255,6 +258,7 @@ plugged in, and don't unplug the drive with your footage until Claude says it's 
 
 ## Updating
 
+Claude checks for updates at the start of a conversation and offers to update. By hand:
 ```bash
 git pull
 ```
@@ -266,4 +270,5 @@ MIT License (see `LICENSE`). The Shorts skill links to two separate MIT projects
 [reel-skills](https://github.com/danilbogdan/reel-skills) by danilbogdan and
 [youtube-agent-skill](https://github.com/Jakeschincariol/youtube-agent-skill) by Jake Schincariol.
 Their code is not included here; install them from their own repositories if you want them.
-Requires [ffmpeg](https://ffmpeg.org), installed separately.
+Uses [ffmpeg](https://ffmpeg.org) (downloaded by setup if your computer doesn't have it) and,
+if needed, [uv](https://github.com/astral-sh/uv) for a private Python.

@@ -7,6 +7,7 @@ only plain file names to filters. Input/output paths outside filters are passed 
 """
 import functools
 import json
+import os
 import platform
 import re
 import shutil
@@ -21,6 +22,11 @@ AUDIO_EXT = (".wav", ".flac", ".mp3", ".m4a", ".aif", ".aiff")
 IMAGE_EXT = (".jpg", ".jpeg", ".heic", ".png", ".dng")
 
 OS = {"Darwin": "mac", "Windows": "windows"}.get(platform.system(), "linux")
+
+# A private ffmpeg downloaded by setup (scripts/get_ffmpeg.py) wins over a system one.
+LOCAL_FFMPEG = ROOT / ".tools" / "ffmpeg"
+if LOCAL_FFMPEG.is_dir():
+    os.environ["PATH"] = str(LOCAL_FFMPEG) + os.pathsep + os.environ.get("PATH", "")
 
 
 def run(cmd, cwd=None, check=True):
