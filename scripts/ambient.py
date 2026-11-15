@@ -35,7 +35,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import (FF, VIDEO_EXT, aac_args, describe, duration, hwaccel_args, loudness, need,  # noqa: E402
+from common import (FF, VIDEO_EXT, aac_args, describe, duration, ffmpeg_list, hwaccel_args, loudness, need,  # noqa: E402
                     run, run_err, video_encoder_args)
 
 
@@ -156,15 +156,17 @@ def analyze_clip(c, work, rate=6):
     """All side files get plain names and ffmpeg runs with cwd=work: safe on Windows paths."""
     base = re.sub(r"[^A-Za-z0-9_-]+", "_", Path(c["path"]).stem)
     vm, trf, am, lm = base + ".video.txt", base + ".trf", base + ".loud.txt", base + ".low.txt"
+    has_stab = "vidstabdetect" in ffmpeg_list("filters")     # optional: some ffmpeg builds lack vid.stab
     vf = (f"fps={rate},scale=320:-2,format=yuv420p,signalstats,scdet=threshold=100,"
-          f"vidstabdetect=shakiness=6:accuracy=9:show=0:result={trf},metadata=mode=print:file={vm}")
+          + (f"vidstabdetect=shakiness=6:accuracy=9:show=0:result={trf}," if has_stab else "")
+          + f"metadata=mode=print:file={vm}")
     run(FF + hwaccel_args() + ["-i", c["path"], "-an", "-vf", vf, "-f", "null", "-"], cwd=work)
     vframes = read_meta(work / vm)
     dur = c["duration"]
     res = {"motion": per_second([(t, d.get("lavfi.signalstats.YDIF")) for t, d in vframes], dur),
            "bright": per_second([(t, d.get("lavfi.signalstats.YAVG")) for t, d in vframes], dur),
            "jump": per_second([(t, d.get("lavfi.scd.score")) for t, d in vframes], dur, "max")}
-    cam = read_trf(work / trf, rate)
+    cam = read_trf(work / trf, rate) if has_stab else []     # no vid.stab: shake is unknown (treated as 0)
     shake_pairs = []        # shake = camera motion minus its 2 s moving average (a slow pan is not shake)
     for i, (t, dx, dy) in enumerate(cam):
         w = cam[max(0, i - rate): i + rate + 1]
@@ -405,6 +407,9 @@ def cmd_loop(a):
     a.stab_trf = None
     if a.tripod:
         a.stab = True
+    if a.stab and "vidstabdetect" not in ffmpeg_list("filters"):
+        sys.exit("--stab needs ffmpeg with vid.stab (vidstabdetect), which this ffmpeg lacks. "
+                 "Leave out --stab, or use an ffmpeg build with vid.stab (Homebrew's ffmpeg has it).")
     if a.stab:      # stabilise the whole window once (two-pass vid.stab) so both loop pieces share one path
         a.stab_trf = "stab.trf"     # plain name, ffmpeg runs in the loop folder
         run(FF + ["-ss", s0, "-t", D + X, "-i", src, "-an", "-vf",

@@ -73,7 +73,9 @@ def main():
 
     print("Python")
     if sys.version_info >= (3, 8):
-        ok(f"Python {platform.python_version()}  (run scripts with: {'python' if OS == 'windows' else 'python3'})")
+        venv = ROOT / ".venv" / ("Scripts/python.exe" if OS == "windows" else "bin/python")
+        hint = str(venv.relative_to(ROOT)) if venv.exists() else ("python" if OS == "windows" else "python3")
+        ok(f"Python {platform.python_version()}  (run scripts with: {hint})")
     else:
         bad(f"Python {platform.python_version()} is too old (need 3.8+)")
         problems.append("python")

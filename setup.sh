@@ -18,7 +18,9 @@ case "$ARCH" in arm64|aarch64) arch=aarch64 ;; x86_64|amd64) arch=x86_64 ;; *) e
 
 # --- 1. Python: use one that is already here (read-only), else a private copy in .tools/ ---
 pybase=""
-if [ -x .venv/bin/python ]; then
+# SETUP_FORCE_LOCAL=1 skips the computer's own Python and ffmpeg (used to test the downloads).
+if [ "${SETUP_FORCE_LOCAL:-0}" = 1 ]; then :
+elif [ -x .venv/bin/python ]; then
   pybase="(existing .venv)"
 else
   for c in python3 python3.13 python3.12 python3.11 python3.10 python3.9; do
@@ -33,6 +35,7 @@ fi
 # --- 2. ffmpeg: the system one is fine if it has the filters we need, else a private copy ---
 ff_ok=0
 if [ -x .tools/ffmpeg/ffmpeg ] && [ -x .tools/ffmpeg/ffprobe ]; then ff_ok=1
+elif [ "${SETUP_FORCE_LOCAL:-0}" = 1 ]; then :
 elif command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1 \
      && ffmpeg -hide_banner -filters 2>/dev/null | grep -q " zscale " \
      && ffmpeg -hide_banner -filters 2>/dev/null | grep -q " xfade "; then ff_ok=1
