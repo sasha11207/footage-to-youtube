@@ -199,6 +199,25 @@ white foam on cold blue, darker edges.
   covers that moment with the sound just before it (picture untouched); make a 20 s preview around the
   spot (`--preview`) and let the user listen before writing the full file.
 
+**Back every suggestion with evidence.** When you propose a thumbnail style, title formula, length
+or effect, say what it is based on, with numbers from the research: e.g. "9 of the 12 most-viewed
+sleep-ocean videos (up to 86 M views) have no text on the thumbnail". If you have no data, say it is
+a guess and offer to test it (Test & Compare) instead of presenting it as a rule.
+
+**Keep videos from looking the same.** Before writing a title or thumbnail, list the channel's last
+10–15 titles (published + scheduled, `yt.py list --n 30`) and check: no two titles within ~2 weeks
+start with the same 3 words or share the same middle part; thumbnails differ in framing and colour
+(not the same crop of the same beach twice in a row). Rewrite if they clash, and tell the user.
+
+**Effects the user asks for (rain, extra sound, filters, "make it nicer").** Before doing it, give
+a short alert with both sides: what the data says (e.g. "rain + ocean is a big niche: 'RAIN and OCEAN
+WAVES … BLACK SCREEN' has 16 M views"), the risks (a mixed or added sound that was not recorded there
+breaks a "Real Sound" promise; stock, AI or downloaded sounds can trigger YouTube's
+inauthentic-content rules or copyright claims; it can also flop if it doesn't match the picture),
+and the honest options: 1. record the real thing (rain at the same sea) 2. use only the user's own
+recordings, labelled honestly in the description 3. skip it. Only when an option is honest and the
+data says it works, recommend it. Never add sounds or effects the user did not approve.
+
 ## Rules (always)
 
 1. **YouTube**: never publish, make public, delete, or change a live video without the user's
