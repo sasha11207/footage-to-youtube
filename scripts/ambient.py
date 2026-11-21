@@ -14,6 +14,8 @@ Steps (each writes into --work, default ./work):
   verify  <final.mp4>              decode start/middle/end, loudness, length -> PASS / FAIL
   short   <clip> <start>           vertical 9:16 Short (up to 60 s) with sound, optional hook text
   patch-sound <video> --at S       cover a short noise in a finished video (picture copied untouched)
+  brightness <clip>                brightness every 20 s; steady windows for dusk/dawn loops
+  stream  <video>                  seamless-loop H.264 file for a 24/7 live stream (keyframe every 4 s)
 
 Example (macOS paths; on Windows use e.g. "D:/Footage/IMG_0420.MOV"):
   python3 scripts/ambient.py scan "/Volumes/Drive/Ocean" --work work
@@ -36,7 +38,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import (FF, VIDEO_EXT, aac_args, describe, duration, ffmpeg_list, hwaccel_args, loudness, need,  # noqa: E402
-                    run, run_err, video_encoder_args)
+                    h264_stream_args, hms, run, run_err, video_encoder_args)
 
 
 def wdir(work):
@@ -278,6 +280,9 @@ LOOKS = {   # applied after tone mapping, in SDR BT.709; tuned on Atlantic coast
     # "day for night": dark blue sea from daytime footage; the sky is darkened further by a gradient (see video_chain)
     "night": "eq=saturation=0.25,curves=r='0/0 0.5/0.02 0.8/0.13 1/0.32':g='0/0 0.5/0.045 0.8/0.22 1/0.52':"
              "b='0/0.012 0.4/0.06 0.7/0.30 0.9/0.66 1/0.88',noise=alls=3:allf=t",
+    # softer night for dusk clips: the foam stays white-blue and visible
+    "softnight": "eq=saturation=0.35,curves=r='0/0 0.45/0.05 0.75/0.30 1/0.62':g='0/0 0.45/0.08 0.75/0.42 1/0.80':"
+                 "b='0/0.015 0.4/0.11 0.7/0.52 0.9/0.88 1/0.97',noise=alls=3:allf=t",
     "sleep": "curves=master='0/0 0.5/0.36 1/0.74',eq=saturation=0.85,colortemperature=temperature=5600:mix=0.45,vignette=angle=PI/6",
 }
 
@@ -305,8 +310,9 @@ def video_chain(c, a, size, t0=0.0, tag="x"):
     xpos = getattr(a, "xpos", 0.5)
     f.append(f"scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,"
              f"crop={w}:{h}:x='(iw-ow)*{xpos}':y='(ih-oh)/2',setsar=1")
-    if a.look == "night":      # darken the sky: multiply by a static top-down gradient (bright foam kept)
-        f.append(f"format=gbrp[p{tag}];gradients=s={w}x{h}:r={a.fps}:c0=0x8a8a8a:c1=0xffffff:x0=0:y0=0:x1=0:"
+    if a.look in ("night", "softnight"):   # darken the sky: multiply by a static top-down gradient (bright foam kept)
+        c0 = "0x8a8a8a" if a.look == "night" else "0x9e9e9e"
+        f.append(f"format=gbrp[p{tag}];gradients=s={w}x{h}:r={a.fps}:c0={c0}:c1=0xffffff:x0=0:y0=0:x1=0:"
                  f"y1={int(int(h) * 0.48)}:n=2:speed=0,format=gbrp[g{tag}];[p{tag}][g{tag}]blend=all_mode=multiply:shortest=1")
     if LOOKS[a.look]:
         f.append(LOOKS[a.look])
@@ -345,12 +351,29 @@ def master(src, out, target, ceiling):
     print(f"audio: {i:.1f} LUFS -> {i3:.1f} LUFS, true peak {tp3:.1f} dBFS (gain {g:+.1f} dB{', limited' if lim else ''})")
 
 
+EDGE = 30.0     # seconds at the start and end of a recorder file that are never used (start/stop beeps, handling)
+
+
+def check_recorder_edges(a, w0, length):
+    """Recorders beep and get handled when started and stopped: never take sound from the first or last 30 s.
+    Steady ambient sound needs no exact sync, so shift --audio-offset into the middle of the recording."""
+    if getattr(a, "allow_edges", False):
+        return
+    total = duration(a.audio)
+    if w0 < EDGE or w0 + length > total - EDGE:
+        sys.exit(f"this sound window ({w0:.1f}-{w0 + length:.1f}s of the recorder file, {total:.0f}s long) touches the "
+                 f"first/last {EDGE:g}s, where recorders beep and get handled.\nShift --audio-offset so the window is "
+                 f"inside {EDGE:g}-{total - EDGE:.0f}s (steady ambient sound needs no exact sync), or pass --allow-edges "
+                 f"after listening to that part.")
+
+
 def audio_inputs(a, c, start, length):
     """-ss/-t input args for the sound: camera clip, or an external recorder at start + offset."""
     if a.audio:
         w0 = start + a.audio_offset
         if w0 < 0:
             sys.exit(f"the recorder starts {-w0:.1f}s after this point: use a later start")
+        check_recorder_edges(a, w0, length)
         return ["-ss", f"{w0:.3f}", "-t", f"{length:.3f}", "-i", a.audio], True
     return None, c["audio"]
 
@@ -437,6 +460,7 @@ def cmd_loop(a):
         w0 = a.start + a.audio_offset
         if w0 < 0:
             sys.exit(f"the recorder starts {-w0:.1f}s after this window: raise start")
+        check_recorder_edges(a, w0, D + X)
         ins += ["-ss", f"{w0 + X:.3f}", "-t", D + 1, "-i", a.audio, "-ss", f"{w0:.3f}", "-t", X + 1, "-i", a.audio]
         ai, has_audio = (2, 3), True
     if has_audio:
@@ -444,7 +468,7 @@ def cmd_loop(a):
                f"[{ai[1]}:a]{ac},atrim=duration={X},asetpts=PTS-STARTPTS[ab];"
                f"[aa][ab]acrossfade=d={X}:c1=qsin:c2=qsin[a]")
     raw_wav, wav, mp4 = out / "loop_raw.wav", out / "loop.wav", out / "loop.mp4"
-    enc = video_encoder_args(a.codec, a.fps)
+    enc = video_encoder_args(a.codec, a.fps, gop=a.gop)
     cmd = FF + ins + ["-filter_complex", fc, "-map", "[v]"] + enc + [
         "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv",
         "-an", "-movflags", "+faststart", mp4]
@@ -458,7 +482,7 @@ def cmd_loop(a):
     if a.stab:
         (out / "stab_window.mov").unlink(missing_ok=True)
     meta = {"clip": str(Path(a.clip).resolve()), "start": a.start, "dur": D, "xfade": X, "look": a.look,
-            "size": a.size, "fps": a.fps, "codec": enc[1], "lufs": a.lufs, "audio": has_audio,
+            "size": a.size, "fps": a.fps, "codec": enc[1], "gop": a.gop, "lufs": a.lufs, "audio": has_audio,
             "audio_src": a.audio or "camera", "audio_offset": a.audio_offset}
     save_json(out / "loop.json", meta)
     print(f"-> {mp4} ({duration(mp4):.2f}s)" + (" + loop.wav" if has_audio else "") +
@@ -475,6 +499,50 @@ def cmd_seam(a):
     run(FF + ins + ["-ss", D - 5, "-t", 10, "-c:v", "libx264", "-crf", "20", "-pix_fmt", "yuv420p"]
         + (aac_args("192k") if wav.exists() else []) + ["-shortest", out])
     print(f"-> {out}: the seam is at 0:05. Watch and listen: you should not notice anything at 0:05.")
+    first, last = frame_yavg(mp4, 0, first=True), frame_yavg(mp4, 0, first=False)
+    if first and last:
+        diff = abs(first - last) / max(first, last) * 100
+        print(f"brightness first/last frame: {first:.1f} / {last:.1f} ({diff:.1f}% apart)"
+              + ("  -> over 2%: the seam may 'blink'. Pick a window where the light is steady (ambient.py brightness)."
+                 if diff > 2 else "  ok"))
+
+
+def frame_yavg(path, t, first=True):
+    """Average brightness (YAVG, 0-255) of the frame at t, or of the very last frame."""
+    pos = ["-ss", f"{t:.3f}"] if first else ["-sseof", "-0.3"]
+    err = run_err(["ffmpeg", "-hide_banner", "-nostdin"] + pos + ["-i", path, "-vf", "signalstats,metadata=mode=print",
+                                                                "-an", "-f", "null", "-"])
+    vals = re.findall(r"lavfi\.signalstats\.YAVG=([\d.]+)", err)
+    if not vals:
+        return None
+    return float(vals[0] if first else vals[-1])
+
+
+def cmd_brightness(a):
+    """Dusk/dawn light changes fast. Measure brightness every --every seconds and show steady windows."""
+    c = describe(a.clip)
+    if not c:
+        sys.exit("not a video: " + a.clip)
+    err = run_err(["ffmpeg", "-hide_banner", "-nostdin"] + hwaccel_args() + ["-i", a.clip, "-an", "-vf",
+                   f"fps=1/{a.every},scale=320:-2,signalstats,metadata=mode=print", "-f", "null", "-"])
+    vals = [float(v) for v in re.findall(r"lavfi\.signalstats\.YAVG=([\d.]+)", err)]
+    if not vals:
+        sys.exit("could not measure brightness")
+    print(f"{Path(a.clip).name}: brightness (YAVG 0-255) every {a.every:g} s")
+    for i, v in enumerate(vals):
+        print(f"  {hms(i * a.every):>7s}  {v:6.1f}  " + "#" * int(v / 4))
+    n = max(2, int(round(a.window / a.every)))
+    best = []
+    for i in range(0, len(vals) - n + 1):
+        w = vals[i:i + n]
+        spread = (max(w) - min(w)) / max(max(w), 1) * 100
+        best.append((spread, i))
+    best.sort()
+    print(f"\nsteadiest {a.window:g} s windows (brightness change; under ~2% loops without a visible 'blink'):")
+    for spread, i in best[:3]:
+        print(f"  start {hms(i * a.every)} ({i * a.every:g}s): {spread:.1f}%")
+    if max(vals) < 12:
+        print("this clip is nearly black: brightening it will only show noise. Use another clip.")
 
 
 def concat_line(p):
@@ -629,6 +697,37 @@ def cmd_patch_sound(a):
     print(f"-> {out}" + ("  (the spot is at 0:10)" if a.preview else ""))
 
 
+# ---------------------------------------------------------------- stream file
+def cmd_stream(a):
+    """A seamless-loop H.264 file for a 24/7 YouTube live stream: the last F seconds crossfade into the first F,
+    so a streaming tool can repeat the file forever without a jump. Keyframe every 4 s, steady bitrate."""
+    c = describe(a.src)
+    if not c:
+        sys.exit("not a video: " + a.src)
+    T = min(a.len, c["duration"]) if a.len else c["duration"]
+    F = a.xfade
+    if T < 4 * F:
+        sys.exit("the input is too short for a looping stream file")
+    w, h = a.size.split("x")
+    sc = f"scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,crop={w}:{h},setsar=1,fps={a.fps},format=yuv420p"
+    fc = (f"[0:v]trim=start={F}:end={T:.3f},setpts=PTS-STARTPTS,{sc}[va];"
+          f"[1:v]trim=end={F},setpts=PTS-STARTPTS,{sc}[vb];"
+          f"[va][vb]xfade=transition=fade:duration={F}:offset={T - 2 * F:.3f}[v]")
+    maps = ["-map", "[v]"]
+    if c["audio"]:
+        fc += (f";[0:a]atrim=start={F}:end={T:.3f},asetpts=PTS-STARTPTS[aa];[1:a]atrim=end={F},asetpts=PTS-STARTPTS[ab];"
+               f"[aa][ab]acrossfade=d={F}:c1=tri:c2=tri[au]")
+        maps += ["-map", "[au]", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"]
+    out = Path(a.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    enc = h264_stream_args(a.fps, a.vb)
+    print(f"stream file {T - F:.0f}s {a.size} H.264 {a.vb}bit/s with {enc[1]}", flush=True)
+    run(FF + ["-t", f"{T:.3f}", "-i", a.src, "-t", F, "-i", a.src, "-filter_complex", fc] + maps + enc +
+        ["-movflags", "+faststart", out])
+    print(f"-> {out} ({duration(out):.1f}s). When you create the stream in YouTube Studio (or a streaming tool), "
+          f"choose the resolution that matches: {'2160p' if int(h) >= 2160 else '1440p' if int(h) >= 1440 else '1080p'}.")
+
+
 # ---------------------------------------------------------------- CLI
 def add_look_args(p, lufs=-20.0):
     p.add_argument("--fps", type=int, default=30)
@@ -645,6 +744,8 @@ def add_look_args(p, lufs=-20.0):
     p.add_argument("--audio-offset", type=float, default=0.0, help="recorder time = video time + this (footage.py sync)")
     p.add_argument("--lufs", type=float, default=lufs, help="sleep -20..-23, daytime -16..-18, Shorts -14")
     p.add_argument("--tp", type=float, default=-2, help="true-peak ceiling dBFS")
+    p.add_argument("--allow-edges", action="store_true",
+                   help="allow sound from the first/last 30 s of a recorder file (only after listening to it)")
 
 
 def main():
@@ -673,6 +774,8 @@ def main():
     p.add_argument("--tripod", action="store_true", help="lock to the window's first frame (slow drift)")
     p.add_argument("--codec", choices=["auto", "hevc", "x265", "x264"], default="auto",
                    help="auto = hardware H.265 if this computer has it, else x265")
+    p.add_argument("--gop", type=float, default=10,
+                   help="keyframe every N seconds; short GOPs make static rocks/hills 'pulse' (default 10)")
     add_look_args(p)
 
     p = sub.add_parser("seam"); p.add_argument("loopdir")
@@ -687,6 +790,16 @@ def main():
     p.add_argument("--text-dur", type=float, default=3.0, help="seconds the text stays; 0 = whole Short")
     add_look_args(p, lufs=-14.0)
 
+    p = sub.add_parser("brightness"); p.add_argument("clip")
+    p.add_argument("--every", type=float, default=20, help="measure every N seconds")
+    p.add_argument("--window", type=float, default=300, help="loop length to look for, seconds")
+
+    p = sub.add_parser("stream"); p.add_argument("src"); p.add_argument("--out", default="output/stream.mp4")
+    p.add_argument("--len", type=float, default=3600, help="seconds of the input to use (default 1 h; 0 = all)")
+    p.add_argument("--size", default="1920x1080", help="1920x1080, or 3840x2160 for a 4K stream")
+    p.add_argument("--vb", default="8M", help="video bitrate: 8M for 1080p, about 28M for 4K")
+    p.add_argument("--xfade", type=float, default=5); p.add_argument("--fps", type=int, default=30)
+
     p = sub.add_parser("patch-sound"); p.add_argument("file")
     p.add_argument("--at", type=float, required=True, help="second where the noise starts")
     p.add_argument("--len", type=float, default=1.5, help="how long the noise lasts, seconds")
@@ -697,7 +810,7 @@ def main():
     a = ap.parse_args()
     {"scan": cmd_scan, "analyze": cmd_analyze, "pick": cmd_pick, "test": cmd_test, "loop": cmd_loop,
      "seam": cmd_seam, "build": cmd_build, "verify": cmd_verify, "short": cmd_short,
-     "patch-sound": cmd_patch_sound}[a.cmd](a)
+     "patch-sound": cmd_patch_sound, "brightness": cmd_brightness, "stream": cmd_stream}[a.cmd](a)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,51 @@
+title: "[What worked] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing! Tell other creators what worked for your channel: a video that beat your usual
+        numbers, a thumbnail that won a Test & Compare, a format that held viewers.
+        No channel name, links or personal data are needed. Add them only if you want to.
+  - type: dropdown
+    id: channel_type
+    attributes:
+      label: Channel type
+      options:
+        - Ambient / relaxing (long videos)
+        - Sleep sounds
+        - Cooking / food / drinks
+        - Travel / nature without talking
+        - Shorts only
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What you did
+      description: The change or the video. For example "night version of the same beach, clean thumbnail without text, title says 'for sleep'".
+    validations:
+      required: true
+  - type: textarea
+    id: numbers
+    attributes:
+      label: Key numbers
+      description: Compared with your usual videos. For example CTR, average view duration, views in the first 7 days, views vs your typical video, how long ago it was published.
+      placeholder: |
+        CTR: 6.1% (usual 3.5%)
+        Average view duration: 41 min (usual 9 min)
+        Views after 7 days: 2,300 (usual ~400)
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What you think made the difference
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else (optional)
+      description: Thumbnail description, title formula, length, upload time, a link if you want to share it.

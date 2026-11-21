@@ -41,6 +41,19 @@ Read `work/inventory/footage-map.md`. A recorder line with `@+12.3s (good)` mean
 video time + 12.3 s → use `--audio "<wav>" --audio-offset 12.3`. `(check by ear)` / `(no match)` →
 run `footage.py sync VIDEO WAV --guess <clock offset> --search 300` and confirm with a test clip.
 
+**Listen-check every new recording before using it.** First pass:
+```
+python3 scripts/sound_events.py "<recorder.wav>"
+```
+It lists moments that stand out from the steady background (beeps, barks, voices, knocks), with the
+second and whether it sounds electronic (tonal). Cut a 5–10 s clip around each hit
+(`ffmpeg -ss <s-3> -t 8 -i "<wav>" work/hit1.wav`) and let the user listen. Avoid those parts.
+
+**Never take loop sound from the first or last 30 s of a recorder file** — recorders beep and get
+handled at start and stop (a start beep once landed in a loop's crossfade and repeated every loop).
+`ambient.py test/loop` refuse such windows. Steady surf/rain needs no exact sync: just shift
+`--audio-offset` so the sound comes from the middle of the recording.
+
 ## 2. Find loop windows
 
 ```
@@ -52,6 +65,16 @@ Each pick has a contact sheet `work/pickNN.jpg` — open it, check for people, b
 horizon. Prefer: high `motion` (living water), low `shake95`, no `SCENE-JUMP`, low `wind`.
 `SHAKY(--stab)` → add `--stab` (or `--tripod` for a slow drift) to test/loop.
 Default loop length **300 s** with **4 s** crossfade — long enough that nobody notices the repeat.
+Night loops: `--xfade 8` for a softer seam.
+
+**Dusk and dawn**: the light changes fast and a loop then "blinks" at the seam. Measure first:
+```
+python3 scripts/ambient.py brightness "<clip>" --every 20 --window 300
+```
+and use one of the steadiest windows (under ~2% change). `seam` also prints the first/last frame
+brightness of the finished loop — keep it under ~2%.
+**Clips filmed after dark without lights are black**: brightening shows only noise. Say so early
+instead of processing them (`brightness` warns when a clip is nearly black).
 
 ## 3. Test clips WITH SOUND — the user approves by ear
 
@@ -82,8 +105,12 @@ Re-test only what changed. Continue only after the user says **ok**.
 python3 scripts/ambient.py loop "<clip>" <start> 300 --look day --size 3840x2160 --audio "<wav>" --audio-offset <off> --out work/loop-day
 python3 scripts/ambient.py seam work/loop-day
 ```
-`--size 3840x2160` for 4K sources, `1920x1080` otherwise. `--codec auto` picks the hardware H.265
-encoder (Mac VideoToolbox, NVIDIA, Intel) or x265. Show the user `work/loop-day/seam_check.mp4`
+`--size 3840x2160` for 4K sources, `1920x1080` otherwise; keep the full frame (no extra crop/zoom unless
+the user asks). `--codec auto` picks the hardware H.265 encoder (Mac VideoToolbox, NVIDIA, Intel) or x265.
+Quality is set for dark scenes too (VideoToolbox q80 ≈ 14 Mbit/s for dark 4K; the older q65 gave
+2–3 Mbit/s and a soft, "compressed" picture). Keyframes every 10 s (`--gop 10`, default): with 2 s,
+static rocks and hills visibly "pulsed" every 2 s. Review loops in 4K, not in a light 1080p preview.
+Night phone footage often needs light sharpening: `--vf "unsharp=5:5:0.6:5:5:0"`. Show the user `work/loop-day/seam_check.mp4`
 (the seam is at 0:05 — nothing should happen there).
 
 Sound from clean pieces instead (when the window's own sound has problems):
@@ -113,6 +140,10 @@ python3 scripts/thumb.py work/loop-night/loop.mp4 42 --look night --big "10 HOUR
 ```
 Big short text (2–3 words), one sub-line, the `REAL SOUND · NO AI` badge only if true (`--badge ""` removes it).
 Ask the user to choose the frame second (or show 3 options).
+Use a real frame of the video. **Don't use AI-generated thumbnails** (including YouTube's own thumbnail
+generator): on night ocean footage it invented cave walls and moons that were not there — that misleads
+viewers and breaks a "real" promise. A clean frame (`thumb_*_clean.jpg`, no text) often works best for
+sleep videos; test it against the text version with Test & Compare.
 
 ## 7. Metadata
 
@@ -126,6 +157,10 @@ complete, good example. Proven structure:
 - **Tags**: 12–20, most specific first; total under ~480 characters.
 - `categoryId`: 19 Travel & Events, 22 People & Blogs, 24 Entertainment, 26 Howto & Style.
 - `localizations`: translate title + description for the languages the user chose.
+- **The title must match the sound.** Real numbers: a loud storm titled "for deep sleep" held viewers
+  about 20 seconds; calm night videos titled "for sleep" held 30–60 minutes. Loud/stormy → "for focus,
+  work, study"; calm and dark → "for sleep". Listen to the loop before choosing the use in the title.
+- Day footage graded to night ("day for night") must never be described as "recorded at night".
 - `publishAt` (UTC, ISO) only if the user wants scheduling. Night videos: publish in the evening
   of the main audience's time zone.
 
@@ -134,6 +169,21 @@ Then: user uploads as Private → `yt.py list` → `yt.py apply <ID> output/<nam
 
 ## Other "looks"
 
-`--look none | day | storm | night | sleep`. `sleep` = warm, soft vignette. Extra filters: `--vf "..."`
+`--look none | day | storm | night | softnight | sleep`. `night` = day-for-night, dark navy with glowing foam;
+`softnight` = a lighter night for dusk clips (the foam stays visible); `none` = natural, for real night
+shots with lights; `sleep` = warm, soft vignette. One video = one place, one weather, one fixed frame. Extra filters: `--vf "..."`
 (any ffmpeg video filters, applied after the look). For rain/forest/fireplace the same pipeline
 works: choose `day` or `none`, a lower `--highpass` (50) for fire crackle, and `--denoise 0` for rain.
+
+## 24/7 live stream file (optional)
+
+A long video can also run as a 24/7 live stream. Make a looping H.264 file (keyframe every 4 s,
+steady bitrate, the end crossfades into the start):
+```
+python3 scripts/ambient.py stream output/<name>-3h.mp4 --len 3600 --out output/<name>-stream.mp4                     # 1080p, 8 Mbit/s
+python3 scripts/ambient.py stream output/<name>-3h.mp4 --len 1800 --size 3840x2160 --vb 28M --out output/<name>-stream-4k.mp4
+```
+When the stream is created (YouTube Studio → Go live, or a streaming tool/server), choose the same
+resolution (1080p or 2160p). Going live is public: only on the user's explicit yes. Stream keys are
+secrets: never print them, never put them in files in this project. Streams gain with age: don't
+restart a running stream to "fix" small things; judge results after 2–3 weeks.

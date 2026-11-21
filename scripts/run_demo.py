@@ -26,7 +26,7 @@ PY = sys.executable
 sys.path.insert(0, str(HERE))
 from common import FF, duration, hevc_encoder, run, run_err  # noqa: E402
 
-LOOP_D, XFADE, FPS = 20.0, 2.0, 30
+LOOP_D, XFADE, FPS, OFFSET = 20.0, 2.0, 30, 33.5
 results = []
 
 
@@ -71,10 +71,13 @@ def main():
               "-f", "lavfi", "-i", "anoisesrc=color=pink:amplitude=0.5:seed=7:d=75:r=48000",
               "-af", swell + ",pan=stereo|c0=c0|c1=c0", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
               "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", clip])
-    # recorder: same sound, started 3.5 s BEFORE the camera, plus its own hiss -> offset must be +3.5 s
-    run(FF + ["-i", clip, "-f", "lavfi", "-i", "anoisesrc=color=white:amplitude=0.01:seed=3:d=85:r=48000",
-              "-filter_complex", "[0:a]adelay=3500|3500,apad=pad_dur=6[x];[1:a]pan=stereo|c0=c0|c1=c0[n];"
-              "[x][n]amix=inputs=2:duration=shortest:normalize=0",
+    # recorder: same sound, started 33.5 s BEFORE the camera, plus its own hiss and one electronic beep
+    # at 100 s -> sync offset must be +33.5 s, sound_events must find the beep
+    run(FF + ["-i", clip, "-f", "lavfi", "-i", "anoisesrc=color=white:amplitude=0.01:seed=3:d=145:r=48000",
+              "-f", "lavfi", "-i", "sine=frequency=3000:sample_rate=48000:duration=0.3",
+              "-filter_complex", f"[0:a]adelay={int(OFFSET * 1000)}|{int(OFFSET * 1000)},apad=pad_dur=36[x];"
+              "[1:a]pan=stereo|c0=c0|c1=c0[n];[2:a]volume=0.5,pan=stereo|c0=c0|c1=c0,adelay=100000|100000[b];"
+              "[x][n][b]amix=inputs=3:duration=first:normalize=0",
               "-c:a", "pcm_s24le", rec])
 
     s = HERE
@@ -85,15 +88,24 @@ def main():
     sync = step("footage sync (one pair)", [s / "footage.py", "sync", clip, rec, "--work", W])
     m = re.search(r"offset ([+-][\d.]+) s", sync)
     off = float(m.group(1)) if m else 99
-    check("sync offset is +3.5 s", abs(off - 3.5) <= 0.15, f"measured {off:+.2f}")
+    check(f"sync offset is +{OFFSET} s", abs(off - OFFSET) <= 0.15, f"measured {off:+.2f}")
+
+    ev = step("sound_events finds the beep", [s / "sound_events.py", rec])
+    hits = [float(t) for t in re.findall(r"\(\s*([\d.]+)s\).*beep.*likely a beep", ev)]
+    check("beep found near 1:40 and marked tonal", any(97 <= t <= 100.5 for t in hits), str(hits))
 
     step("scan", [s / "ambient.py", "scan", src_dir, "--work", W])
     step("analyze", [s / "ambient.py", "analyze", "--work", W])
     step("pick", [s / "ambient.py", "pick", "--work", W, "--min", 20, "--max", 40, "--top", 3])
     check("pick wrote picks.json", (W / "picks.json").exists())
 
+    step("recorder edge rule refuses the first 30 s", [s / "ambient.py", "test", clip, 10, "--dur", 40,
+                                                      "--audio", rec, "--audio-offset", OFFSET - 25, "--out",
+                                                      W / "tests" / "edge.mp4"], expect_ok=False)
+    step("brightness timeline", [s / "ambient.py", "brightness", clip, "--every", 5, "--window", 20])
+
     t = W / "tests" / "test01.mp4"
-    step("test clip with sound (recorder, night look)", [s / "ambient.py", "test", clip, 10, "--dur", 40, "--look", "night",
+    step("test clip with sound (recorder, softnight look)", [s / "ambient.py", "test", clip, 10, "--dur", 40, "--look", "softnight",
                                                         "--audio", rec, "--audio-offset", off, "--timecode", "--out", t])
     check("test clip is 40 s with sound", t.exists() and abs(duration(t) - 40) < 0.2)
 
@@ -113,13 +125,19 @@ def main():
         seam, mid = ssim(a, b), ssim(c, d)
         check("seam is as smooth as a normal frame step", seam >= mid - 0.05, f"seam SSIM {seam:.3f} vs normal {mid:.3f}")
 
-    step("seam check clip", [s / "ambient.py", "seam", loop])
+    seamtxt = step("seam check clip", [s / "ambient.py", "seam", loop])
+    check("seam brightness measured", "brightness first/last frame" in seamtxt)
     check("seam_check.mp4 is 10 s", (loop / "seam_check.mp4").exists() and abs(duration(loop / "seam_check.mp4") - 10) < 0.3)
 
     final = W / "output" / "demo-3min.mp4"
     step("build 0.05 h (3 min) by stream copy", [s / "ambient.py", "build", loop, "--hours", 0.05, "--out", final])
     check("final video is 3 min", final.exists() and abs(duration(final) - 180) < 1, f"{duration(final):.2f}s")
     step("verify (decode start/middle/end, loudness)", [s / "ambient.py", "verify", final, "--hours", 0.05, "--lufs", -20])
+
+    st = W / "output" / "stream.mp4"
+    step("live-stream loop file", [s / "ambient.py", "stream", final, "--len", 60, "--size", "1280x720", "--vb", "3M",
+                                   "--out", st])
+    check("stream file is 55 s (60 - 5 s crossfade)", st.exists() and abs(duration(st) - 55) < 0.3, f"{duration(st):.2f}s")
 
     sh = W / "shorts" / "short01.mp4"
     step("vertical Short", [s / "ambient.py", "short", clip, 20, "--dur", 30, "--out", sh])
@@ -147,7 +165,7 @@ def main():
     check("thumbnail exists", (W / "thumbs" / "thumb_day_text.jpg").exists())
 
     step("audioloop from two clean pieces", [s / "audioloop.py", W / "bed.wav", "--len", LOOP_D, "--k", 2,
-                                            f"{rec}@10-25", f"{rec}@40-55", "--process"])
+                                            f"{rec}@40-55", f"{rec}@70-85", "--process"])
     check("audioloop length", (W / "bed.wav").exists() and abs(duration(W / "bed.wav") - LOOP_D) < 0.05)
 
     print("\n" + "=" * 60)

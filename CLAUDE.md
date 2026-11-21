@@ -250,6 +250,27 @@ and the honest options: 1. record the real thing (rain at the same sea) 2. use o
 recordings, labelled honestly in the description 3. skip it. Only when an option is honest and the
 data says it works, recommend it. Never add sounds or effects the user did not approve.
 
+## Sharing what worked (opt-in, never automatic)
+
+When something **clearly worked** for the user — a video beat their usual numbers (e.g. 2x+ the
+views of their typical video, or a much longer average view duration), a Test & Compare thumbnail
+won, a new format held viewers — ask **once** for that result:
+
+> "This worked really well. Would you like to share it with the author of this project and other
+> creators, so everyone learns what works? 1. Yes, show me a draft first 2. No, thanks"
+
+Only on 1: write a short draft to `channel/share/what-worked-<date>.md` from
+`templates/what-worked.md`: channel type, what was done, the key numbers (CTR, average view
+duration, views vs their typical video, days since publishing — from `yt.py stats` or what the user
+reads in Studio), and what they think made the difference. **No channel name, links, video IDs,
+places, faces or personal data** unless the user adds them themselves. Show the full draft, let them
+edit it, and ask "1. Post it 2. Change something 3. Don't post". Only on "post":
+`scripts/share.py post <file> --title "<short title>"` (preview), then the same with `--yes`. It posts
+to the project's GitHub Discussions, category "What worked", under the user's own GitHub account via
+`gh`. If `gh` is missing or not signed in, give them the web link the script prints and let them paste
+it themselves (installing `gh` is optional and follows rule 4). Never send anything without that yes,
+never ask again for the same result, and respect a "no" for the rest of the conversation.
+
 ## Rules (always)
 
 1. **YouTube**: never publish, make public, delete, or change a live video without the user's
@@ -299,11 +320,14 @@ scripts/get_ffmpeg.py  download ffmpeg into .tools/ffmpeg (used by setup)
 scripts/doctor.py      check computer, say what is missing
 scripts/run_demo.py    self-test on a synthetic clip (must end with DEMO PASSED)
 scripts/footage.py     inventory a folder/drive; sync recorder sound to video
-scripts/ambient.py     scan / analyze / pick / test / loop / seam / build / verify / short
+scripts/sound_events.py  find beeps, barks, voices in a recording before using it
+scripts/ambient.py     scan / analyze / pick / test / loop / seam / build / verify / short /
+                       patch-sound / brightness / stream
 scripts/audioloop.py   clean sound bed from hand-picked pieces, tiled to the loop length
 scripts/thumb.py       thumbnail 1280x720 with text; --suffix _a/_b for A/B test variants
 scripts/yt.py          YouTube via API: auth, list, show, apply --dry-run, stats --save (no uploads)
 scripts/research.py    competitor research: search / channel, outlier ranking
+scripts/share.py       post a "what worked" note to GitHub Discussions (preview first, only on yes)
 templates/             meta.json and channel profile templates
 examples/              a complete sanitized example (10 h night ocean)
 work/  output/  channel/  .secrets/    local only, git-ignored

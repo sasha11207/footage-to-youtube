@@ -127,10 +127,13 @@ def hevc_encoder():
     return "libx265"
 
 
-def video_encoder_args(codec, fps, quality="high"):
+def video_encoder_args(codec, fps, quality="high", gop=10):
     """Encoder arguments. codec: auto | hevc | x265 | x264; quality: high (loops) | short | preview (tests).
-    GOP = 2 s, closed, so loops stream-copy cleanly."""
-    g = str(int(fps) * 2)
+    Closed GOP of `gop` seconds, so loops stream-copy cleanly. 10 s is the default because a 2 s GOP made
+    static textures (rocks, hills) visibly "pulse" at every keyframe in long ambient videos.
+    Quality "high" is tuned for dark scenes too: VideoToolbox q65 gave only 2-3 Mbit/s on dark 4K
+    (soft, "compressed" look), q80 gives about 14 Mbit/s."""
+    g = str(int(round(fps * gop)))
     if codec in ("auto", "hevc"):
         codec = hevc_encoder()
     if codec in ("x264", "libx264"):
@@ -138,20 +141,34 @@ def video_encoder_args(codec, fps, quality="high"):
         return ["-c:v", "libx264", "-preset", preset, "-crf", crf,
                 "-g", g, "-bf", "2", "-flags", "+cgop", "-pix_fmt", "yuv420p"]
     if codec in ("x265", "libx265"):
-        return ["-c:v", "libx265", "-preset", "medium", "-crf", "18" if quality == "high" else "24", "-tag:v", "hvc1",
+        return ["-c:v", "libx265", "-preset", "medium", "-crf", "17" if quality == "high" else "24", "-tag:v", "hvc1",
                 "-x265-params", f"keyint={g}:open-gop=0:log-level=error", "-pix_fmt", "yuv420p"]
     if codec == "hevc_videotoolbox":
-        return ["-c:v", codec, "-q:v", "65" if quality == "high" else "50", "-tag:v", "hvc1", "-g", g]
+        return ["-c:v", codec, "-q:v", "80" if quality == "high" else "55", "-tag:v", "hvc1", "-g", g]
     if codec == "hevc_nvenc":
-        return ["-c:v", codec, "-preset", "p6", "-rc", "vbr", "-cq", "21" if quality == "high" else "27", "-b:v", "0",
+        return ["-c:v", codec, "-preset", "p6", "-rc", "vbr", "-cq", "19" if quality == "high" else "27", "-b:v", "0",
                 "-tag:v", "hvc1", "-g", g, "-bf", "0", "-pix_fmt", "yuv420p"]
     if codec == "hevc_qsv":
-        return ["-c:v", codec, "-global_quality", "21" if quality == "high" else "27", "-tag:v", "hvc1", "-g", g,
+        return ["-c:v", codec, "-global_quality", "19" if quality == "high" else "27", "-tag:v", "hvc1", "-g", g,
                 "-pix_fmt", "nv12"]
     if codec == "hevc_amf":
-        return ["-c:v", codec, "-quality", "quality", "-rc", "cqp", "-qp_i", "20", "-qp_p", "22",
+        return ["-c:v", codec, "-quality", "quality", "-rc", "cqp", "-qp_i", "18", "-qp_p", "20",
                 "-tag:v", "hvc1", "-g", g]
     sys.exit(f"unknown codec {codec}")
+
+
+def h264_stream_args(fps, bitrate="8M", keyint_s=4):
+    """Constant-ish bitrate H.264 for live streaming (YouTube wants a keyframe at least every 4 s)."""
+    g = str(int(round(fps * keyint_s)))
+    rate = ["-b:v", bitrate, "-maxrate", bitrate, "-bufsize", bitrate]
+    order = {"mac": ["h264_videotoolbox"], "windows": ["h264_nvenc", "h264_qsv", "h264_amf"],
+             "linux": ["h264_nvenc", "h264_qsv"]}[OS]
+    for e in order:
+        if encoder_works(e):
+            extra = ["-allow_sw", "0"] if e == "h264_videotoolbox" else []
+            return ["-c:v", e, "-profile:v", "high"] + rate + ["-g", g, "-pix_fmt", "yuv420p"] + extra
+    return ["-c:v", "libx264", "-preset", "veryfast", "-profile:v", "high"] + rate + \
+        ["-g", g, "-keyint_min", g, "-sc_threshold", "0", "-pix_fmt", "yuv420p"]
 
 
 def aac_args(bitrate="256k"):

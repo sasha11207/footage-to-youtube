@@ -12,6 +12,10 @@ You don't need to know how to program. You always upload and publish yourself.
 Everything runs on your own computer (macOS or Windows; Linux works too). Your footage never
 leaves your computer and never goes into git.
 
+**We collect feedback: tell us what worked for your channel** — a video that took off, a thumbnail
+that won, a format that held viewers. Post it in [Discussions → What worked](https://github.com/sasha11207/footage-to-youtube/discussions/categories/what-worked) (or let Claude
+draft it for you — see [Share what worked](#share-what-worked)).
+
 ---
 
 ## What it can do
@@ -26,7 +30,11 @@ leaves your computer and never goes into git.
 - **Checks the finished file**: plays at start, middle and end, loudness on target, right length.
 - **Shorts**: vertical 1080×1920 clips with a hook text on screen; links to two free skill packs for
   talking, cooking and tutorial Shorts.
+- **Finds problems in your recordings** before you use them: recorder beeps, barks, voices, knocks.
+- **Dusk and dawn clips**: measures how fast the light changes and picks a steady window, so the loop
+  doesn't "blink".
 - **Fix a noise** (a bark, a car) at a given second in a finished video.
+- **24/7 live stream file**: a looping 1080p or 4K file ready for a live stream.
 - **Thumbnails** with big text.
 - **Titles, descriptions, tags, translations, playlists, scheduling** — filled in on YouTube for you
   (after you upload as Private and say "yes").
@@ -223,12 +231,14 @@ So you can fill in dozens of videos and run ~50 searches a day for free.
 | `scripts/doctor.py` | Checks your computer, says what is missing |
 | `scripts/run_demo.py` | Self-test on a generated clip |
 | `scripts/footage.py` | Lists your footage, finds duplicates, syncs recorder sound |
-| `scripts/ambient.py` | Analyze, pick, test, loop, seam check, build, verify, Short, patch-sound |
+| `scripts/sound_events.py` | Finds beeps, barks, voices and knocks in a recording |
+| `scripts/ambient.py` | Analyze, pick, test, loop, seam check, build, verify, Short, patch-sound, brightness, stream file |
 | `scripts/audioloop.py` | Builds a clean sound bed from hand-picked pieces |
 | `scripts/thumb.py` | Thumbnail with text |
 | `scripts/keepawake.py` | Keeps the computer awake while a video renders (no settings changed) |
 | `scripts/yt.py` | YouTube metadata (titles, descriptions, languages, thumbnail, playlists, schedule) |
 | `scripts/research.py` | YouTube research (outliers, views per day, upload rhythm) |
+| `scripts/share.py` | Posts your "what worked" note to Discussions (preview first, only when you say yes) |
 | `templates/` | Templates for video metadata and your channel profile |
 | `examples/night-ocean/` | A full example: a 10-hour night ocean video |
 
@@ -255,6 +265,18 @@ computer and are never committed.
 A 10-hour video can take a few hours to render. Claude keeps your computer awake while it runs
 (`scripts/keepawake.py`, no settings are changed). Please don't close the laptop lid, keep it
 plugged in, and don't unplug the drive with your footage until Claude says it's done.
+
+## Share what worked
+
+This project gets better from real results. When something clearly works for you (a video beats your
+usual numbers, a thumbnail wins Test & Compare, a new format holds viewers), Claude asks **once**
+whether you'd like to share it. It's always your choice — nothing is ever sent automatically.
+
+If you say yes, Claude writes a short note: what you did, the key numbers (CTR, average view
+duration, views compared with your usual videos) and what you think made the difference — **without**
+your channel name, links or personal data, unless you add them. You read and edit it, and only then
+it's posted under your own GitHub account to [Discussions → What worked](https://github.com/sasha11207/footage-to-youtube/discussions/categories/what-worked) (via the GitHub CLI
+`gh`, or you paste it into the form yourself). You can also post there any time without Claude.
 
 ## Updating
 
